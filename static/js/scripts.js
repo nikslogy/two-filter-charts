@@ -946,6 +946,77 @@ document.addEventListener('DOMContentLoaded', function() {
                         }
                     }
                     
+                    // Process combinations of both filters (only if both filters are applied)
+                    if (chartFilterColumn && chartFilterOptions.length > 0 && 
+                        chartFilterColumn2 && chartFilterOptions2.length > 0) {
+                        
+                        // Initialize the combinations object in preFilteredData
+                        if (!preFilteredData.combinations) {
+                            preFilteredData.combinations = {};
+                        }
+                        
+                        // Process each combination of filter values
+                        for (const filterOption of chartFilterOptions) {
+                            if (!filterOption) continue; // Skip empty option
+                            
+                            // Initialize this filter's combinations
+                            if (!preFilteredData.combinations[filterOption]) {
+                                preFilteredData.combinations[filterOption] = {};
+                            }
+                            
+                            for (const filterOption2 of chartFilterOptions2) {
+                                if (!filterOption2) continue; // Skip empty option
+                                
+                                // Create a promise for this combination
+                                const fetchPromise = fetch('/apply_chart_filter', {
+                                    method: 'POST',
+                                    headers: {
+                                        'Content-Type': 'application/json',
+                                    },
+                                    body: JSON.stringify({
+                                        filename: currentFileName,
+                                        sheet: currentSheetName,
+                                        xAxis: xAxisSelect.value,
+                                        yAxes: Array.from(document.querySelectorAll('.y-axis-item')).map(item => {
+                                            return {
+                                                column: item.querySelector('.y-axis-select').value,
+                                                color: item.querySelector('.series-color').value
+                                            };
+                                        }),
+                                        chartType: selectedChartType,
+                                        startRow: parseInt(startRowInput.value),
+                                        endRow: parseInt(endRowInput.value),
+                                        filterColumn: filterColumnSelect.value,
+                                        filterValue: filterValueSelect.value,
+                                        chartFilterColumn: chartFilterColumn,
+                                        chartFilterValue: filterOption,
+                                        chartFilterColumn2: chartFilterColumn2,
+                                        chartFilterValue2: filterOption2
+                                    })
+                                })
+                                .then(response => response.json())
+                                .then(data => {
+                                    if (data.success) {
+                                        // Store the filtered data for this combination
+                                        preFilteredData.combinations[filterOption][filterOption2] = data.chartData;
+                                    }
+                                    completedFetches++;
+                                    
+                                    // Update the loading message to show progress
+                                    loadingDiv.textContent = `Preparing chart data... (${completedFetches}/${fetchCount})`;
+                                })
+                                .catch(error => {
+                                    console.error(`Error pre-filtering data for combination ${filterOption}/${filterOption2}`, error);
+                                    completedFetches++;
+                                    loadingDiv.textContent = `Preparing chart data... (${completedFetches}/${fetchCount})`;
+                                });
+                                
+                                fetchPromises.push(fetchPromise);
+                                fetchCount++;
+                            }
+                        }
+                    }
+                    
                     // Wait for all fetch operations to complete
                     return Promise.all(fetchPromises);
                 };

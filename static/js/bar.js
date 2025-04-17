@@ -203,7 +203,7 @@ const BarChartHandler = {
     },
     
     // Generate HTML for exporting bar chart
-    generateBarChartHTML: function(chartConfig, chartTitle, description, additionalInfo, chartFilterColumn, chartFilterOptions, selectedFilterValue, preFilteredData) {
+    generateBarChartHTML: function(chartConfig, chartTitle, description, additionalInfo, chartFilterColumn, chartFilterOptions, selectedFilterValue, preFilteredData, chartFilterColumn2, chartFilterOptions2, selectedFilterValue2) {
         return `
 <!DOCTYPE html>
 <html>
@@ -324,15 +324,26 @@ const BarChartHandler = {
             <div class="chart-title">${chartTitle}</div>
             <img class="chart-logo" src="logo.png" alt="ChartFlask Logo">
         </div>
-        ${chartFilterColumn ? `
+        ${chartFilterColumn || chartFilterColumn2 ? `
         <div class="chart-filter-controls">
+            ${chartFilterColumn ? `
             <div class="chart-filter-group">
-                <label for="chartFilter">${chartFilterColumn}</label>
+                <label for="chartFilter">${chartFilterColumn}:</label>
                 <select id="chartFilter" onchange="filterChartData()">
                     <option value="">All</option>
                     ${chartFilterOptions.map(value => value ? `<option value="${value}" ${value === selectedFilterValue ? 'selected' : ''}>${value}</option>` : '').join('')}
                 </select>
             </div>
+            ` : ''}
+            ${chartFilterColumn2 ? `
+            <div class="chart-filter-group">
+                <label for="chartFilter2">${chartFilterColumn2}:</label>
+                <select id="chartFilter2" onchange="filterChartData()">
+                    <option value="">All</option>
+                    ${chartFilterOptions2 && chartFilterOptions2.length > 0 ? chartFilterOptions2.map(value => value ? `<option value="${value}" ${value === selectedFilterValue2 ? 'selected' : ''}>${value}</option>` : '').join('') : ''}
+                </select>
+            </div>
+            ` : ''}
         </div>
         ` : ''}
         <div class="chart-canvas-container">
@@ -470,7 +481,7 @@ const BarChartHandler = {
                         ...chartOptions.scales?.y,
                         beginAtZero: true,
                         grid: {
-                            drawBorder: false     // ✅ Show tick marks
+                            drawBorder: false,
                             color: 'rgba(0,0,0,0.06)', // Optional: customize grid color
                         },
                         ticks: {
@@ -485,10 +496,11 @@ const BarChartHandler = {
             }
         });
 
-        ${chartFilterColumn ? `
+        ${(chartFilterColumn || chartFilterColumn2) ? `
         // Function to filter chart data based on selected value
         function filterChartData() {
-            const filterValue = document.getElementById('chartFilter').value;
+            const filterValue = document.getElementById('chartFilter') ? document.getElementById('chartFilter').value : '';
+            const filterValue2 = document.getElementById('chartFilter2') ? document.getElementById('chartFilter2').value : '';
             
             if (!chart || !chart.data) return;
             
@@ -499,17 +511,54 @@ const BarChartHandler = {
                     visibility.push(!chart.getDatasetMeta(index).hidden);
                 });
                 
-                // Handle the "All Values" option
-                if (!filterValue) {
+                // Handle the "All Values" option for both filters
+                if (!filterValue && !filterValue2) {
                     // Reset to full data
                     chart.data.labels = originalChartData.labels;
                     chart.data.datasets.forEach((dataset, i) => {
                         dataset.data = originalChartData.datasets[i].data;
                     });
-                // Use pre-filtered data if available
-                } else if (preFilteredData && preFilteredData[filterValue]) {
-                    // Use pre-filtered data from the server
+                } 
+                // Check for first filter
+                else if (filterValue && !filterValue2 && preFilteredData[filterValue]) {
+                    // Use pre-filtered data from the server for filter 1
                     const filteredData = preFilteredData[filterValue];
+                    
+                    // Check if we have valid data
+                    if (filteredData && filteredData.labels && filteredData.datasets) {
+                        // Update labels and datasets
+                        chart.data.labels = filteredData.labels;
+                        
+                        // Update each dataset's data while preserving other properties
+                        filteredData.datasets.forEach((dataset, i) => {
+                            if (i < chart.data.datasets.length) {
+                                chart.data.datasets[i].data = dataset.data;
+                            }
+                        });
+                    }
+                } 
+                // Check for second filter
+                else if (!filterValue && filterValue2 && preFilteredData.filter2 && preFilteredData.filter2[filterValue2]) {
+                    // Use pre-filtered data from the server for filter 2
+                    const filteredData = preFilteredData.filter2[filterValue2];
+                    
+                    // Check if we have valid data
+                    if (filteredData && filteredData.labels && filteredData.datasets) {
+                        // Update labels and datasets
+                        chart.data.labels = filteredData.labels;
+                        
+                        // Update each dataset's data while preserving other properties
+                        filteredData.datasets.forEach((dataset, i) => {
+                            if (i < chart.data.datasets.length) {
+                                chart.data.datasets[i].data = dataset.data;
+                            }
+                        });
+                    }
+                }
+                // If both filters have values, use the second one (simplification)
+                else if (filterValue && filterValue2 && preFilteredData.filter2 && preFilteredData.filter2[filterValue2]) {
+                    // Use pre-filtered data from the server for filter 2
+                    const filteredData = preFilteredData.filter2[filterValue2];
                     
                     // Check if we have valid data
                     if (filteredData && filteredData.labels && filteredData.datasets) {
@@ -525,12 +574,13 @@ const BarChartHandler = {
                     }
                 } else {
                     // Fallback to client-side filtering if no pre-filtered data is available
-                    console.log("No pre-filtered data available for " + filterValue + ", using fallback filter");
+                    console.log("No pre-filtered data available, using fallback filter");
                     
                     // Try exact match in x-axis labels (categorical data)
                     const matchingIndices = [];
                     originalChartData.labels.forEach((label, i) => {
-                        if (String(label).toLowerCase() === String(filterValue).toLowerCase()) {
+                        if ((filterValue && String(label).toLowerCase() === String(filterValue).toLowerCase()) ||
+                            (filterValue2 && String(label).toLowerCase() === String(filterValue2).toLowerCase())) {
                             matchingIndices.push(i);
                         }
                     });
@@ -543,7 +593,7 @@ const BarChartHandler = {
                         });
                     } else {
                         // No exact matches found, show message
-                        displayFilterMessage(filterValue);
+                        displayFilterMessage(filterValue || filterValue2);
                     }
                 }
                 
@@ -559,7 +609,7 @@ const BarChartHandler = {
             } catch (error) {
                 console.error("Error filtering chart:", error);
                 // Show error message and reset to full data
-                displayFilterMessage(filterValue, true);
+                displayFilterMessage(filterValue || filterValue2, true);
                 
                 // Reset to full data
                 chart.data.labels = originalChartData.labels;

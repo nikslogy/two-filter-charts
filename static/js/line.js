@@ -516,7 +516,7 @@ const LineChartHandler = {
                         dataset.data = originalChartData.datasets[i].data;
                     });
                 } 
-                // Check for first filter
+                // Check for first filter only
                 else if (filterValue && !filterValue2 && preFilteredData[filterValue]) {
                     // Use pre-filtered data from the server for filter 1
                     const filteredData = preFilteredData[filterValue];
@@ -534,7 +534,7 @@ const LineChartHandler = {
                         });
                     }
                 } 
-                // Check for second filter
+                // Check for second filter only
                 else if (!filterValue && filterValue2 && preFilteredData.filter2 && preFilteredData.filter2[filterValue2]) {
                     // Use pre-filtered data from the server for filter 2
                     const filteredData = preFilteredData.filter2[filterValue2];
@@ -552,22 +552,54 @@ const LineChartHandler = {
                         });
                     }
                 }
-                // If both filters have values, use the second one (simplification)
-                else if (filterValue && filterValue2 && preFilteredData.filter2 && preFilteredData.filter2[filterValue2]) {
-                    // Use pre-filtered data from the server for filter 2
-                    const filteredData = preFilteredData.filter2[filterValue2];
-                    
-                    // Check if we have valid data
-                    if (filteredData && filteredData.labels && filteredData.datasets) {
-                        // Update labels and datasets
-                        chart.data.labels = filteredData.labels;
+                // Check for both filters - first try to see if we have pre-filtered data for this specific combination
+                else if (filterValue && filterValue2) {
+                    // Look for combination data first
+                    if (preFilteredData.combinations && 
+                        preFilteredData.combinations[filterValue] && 
+                        preFilteredData.combinations[filterValue][filterValue2]) {
                         
-                        // Update each dataset's data while preserving other properties
-                        filteredData.datasets.forEach((dataset, i) => {
-                            if (i < chart.data.datasets.length) {
-                                chart.data.datasets[i].data = dataset.data;
-                            }
-                        });
+                        // Use the pre-filtered data for this specific combination
+                        const filteredData = preFilteredData.combinations[filterValue][filterValue2];
+                        
+                        if (filteredData && filteredData.labels && filteredData.datasets) {
+                            chart.data.labels = filteredData.labels;
+                            filteredData.datasets.forEach((dataset, i) => {
+                                if (i < chart.data.datasets.length) {
+                                    chart.data.datasets[i].data = dataset.data;
+                                }
+                            });
+                        }
+                    }
+                    // Fallback to filter2 if no combined data is available
+                    else if (preFilteredData.filter2 && preFilteredData.filter2[filterValue2]) {
+                        const filteredData = preFilteredData.filter2[filterValue2];
+                        
+                        if (filteredData && filteredData.labels && filteredData.datasets) {
+                            chart.data.labels = filteredData.labels;
+                            filteredData.datasets.forEach((dataset, i) => {
+                                if (i < chart.data.datasets.length) {
+                                    chart.data.datasets[i].data = dataset.data;
+                                }
+                            });
+                        }
+                    } 
+                    // Try filter1 if filter2 data is not available
+                    else if (preFilteredData[filterValue]) {
+                        const filteredData = preFilteredData[filterValue];
+                        
+                        if (filteredData && filteredData.labels && filteredData.datasets) {
+                            chart.data.labels = filteredData.labels;
+                            filteredData.datasets.forEach((dataset, i) => {
+                                if (i < chart.data.datasets.length) {
+                                    chart.data.datasets[i].data = dataset.data;
+                                }
+                            });
+                        }
+                    }
+                    else {
+                        // If no pre-filtered data is available, show a message
+                        displayFilterMessage("Combined filter data", true);
                     }
                 } else {
                     // Fallback to client-side filtering if no pre-filtered data is available
