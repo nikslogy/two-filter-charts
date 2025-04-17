@@ -20,8 +20,11 @@ document.addEventListener('DOMContentLoaded', function() {
     const filterColumnSelect = document.getElementById('filterColumn');
     const filterValueSelect = document.getElementById('filterValue');
     const filterColumn2Select = document.getElementById('filterColumn2');
+    const filterColumn3Select = document.getElementById('filterColumn3');
     const chartFilterValue = document.getElementById('chartFilterValue');
+    const chartFilterValue2 = document.getElementById('chartFilterValue2');
     const chartFilterLabel = document.getElementById('chartFilterLabel');
+    const chartFilterLabel2 = document.getElementById('chartFilterLabel2');
     const chartTitleInput = document.getElementById('chartTitle');
     const xAxisLabelInput = document.getElementById('xAxisLabel');
     const yAxisLabelInput = document.getElementById('yAxisLabel');
@@ -227,6 +230,7 @@ document.addEventListener('DOMContentLoaded', function() {
         // Clear existing options
         filterColumnSelect.innerHTML = '<option value="">No Filter</option>';
         filterColumn2Select.innerHTML = '<option value="">No Chart Filter</option>';
+        filterColumn3Select.innerHTML = '<option value="">No Chart Filter</option>';
         
         // Add options for each column
         columns.forEach(column => {
@@ -236,8 +240,9 @@ document.addEventListener('DOMContentLoaded', function() {
             filterOption.textContent = column;
             filterColumnSelect.appendChild(filterOption.cloneNode(true));
             
-            // Add to chart filter column select
+            // Add to chart filter column selects
             filterColumn2Select.appendChild(filterOption.cloneNode(true));
+            filterColumn3Select.appendChild(filterOption.cloneNode(true));
         });
     }
     
@@ -419,6 +424,12 @@ document.addEventListener('DOMContentLoaded', function() {
         }
     });
     
+    // Handle second chart filter column selection
+    filterColumn3Select.addEventListener('change', function() {
+        // We don't need to update any dropdown values for this one
+        // It will be applied when generating the chart
+    });
+    
     // Populate chart filter values
     function populateChartFilterValues(values) {
         chartFilterValue.innerHTML = '<option value="">All</option>';
@@ -428,6 +439,18 @@ document.addEventListener('DOMContentLoaded', function() {
             option.value = value;
             option.textContent = value;
             chartFilterValue.appendChild(option);
+        });
+    }
+    
+    // Populate second chart filter values
+    function populateChartFilterValues2(values) {
+        chartFilterValue2.innerHTML = '<option value="">All</option>';
+        
+        values.forEach(value => {
+            const option = document.createElement('option');
+            option.value = value;
+            option.textContent = value;
+            chartFilterValue2.appendChild(option);
         });
     }
     
@@ -479,7 +502,8 @@ document.addEventListener('DOMContentLoaded', function() {
                 endRow: parseInt(endRowInput.value),
                 filterColumn: filterColumnSelect.value,
                 filterValue: filterValueSelect.value,
-                chartFilterColumn: filterColumn2Select.value
+                chartFilterColumn: filterColumn2Select.value,
+                chartFilterColumn2: filterColumn3Select.value
             })
         })
         .then(response => response.json())
@@ -502,6 +526,25 @@ document.addEventListener('DOMContentLoaded', function() {
                     chartFilterLabel.textContent = `Filter by ${filterColumn2Select.value}:`;
                     document.querySelector('.chart-filter-controls').classList.remove('hidden');
                 } else {
+                    // Hide only the first filter dropdown, not the entire controls div
+                    chartFilterValue.parentElement.classList.add('hidden');
+                }
+                
+                // Update second chart filter values if second chart filter column is selected
+                if (filterColumn3Select.value && data.chartFilterValues2 && data.chartFilterValues2.length > 0) {
+                    populateChartFilterValues2(data.chartFilterValues2);
+                    chartFilterLabel2.textContent = `Filter by ${filterColumn3Select.value}:`;
+                    document.querySelector('.chart-filter-controls').classList.remove('hidden');
+                    
+                    // Make sure the second filter dropdown is visible
+                    chartFilterValue2.parentElement.classList.remove('hidden');
+                } else {
+                    // Hide only the second filter dropdown
+                    chartFilterValue2.parentElement.classList.add('hidden');
+                }
+                
+                // Hide the entire controls if both dropdowns are hidden
+                if (!filterColumn2Select.value && !filterColumn3Select.value) {
                     document.querySelector('.chart-filter-controls').classList.add('hidden');
                 }
             } else {
@@ -576,7 +619,9 @@ document.addEventListener('DOMContentLoaded', function() {
                 filterColumn: filterColumnSelect.value,
                 filterValue: filterValueSelect.value,
                 chartFilterColumn: filterColumn2Select.value,
-                chartFilterValue: filterValue
+                chartFilterValue: filterValue,
+                chartFilterColumn2: filterColumn3Select.value,
+                chartFilterValue2: chartFilterValue2.value
             })
         })
         .then(response => response.json())
@@ -594,6 +639,78 @@ document.addEventListener('DOMContentLoaded', function() {
         .catch(error => {
             document.body.removeChild(loadingMessage);
             console.error('Error:', error);
+            alert('Error applying chart filter. Please try again.');
+        });
+    });
+    
+    // Filter chart by selected value for second filter
+    chartFilterValue2.addEventListener('change', function() {
+        if (!currentChart || !filterColumn3Select.value) return;
+        
+        const filterValue2 = this.value;
+        console.log("Second filter selected:", filterColumn3Select.value, filterValue2);
+        
+        // Add a loading indicator
+        const loadingMessage = document.createElement('div');
+        loadingMessage.className = 'chart-loading-message';
+        loadingMessage.textContent = 'Updating chart...';
+        document.body.appendChild(loadingMessage);
+        
+        // Create request data
+        const requestData = {
+            filename: currentFileName,
+            sheet: currentSheetName,
+            xAxis: xAxisSelect.value,
+            yAxes: Array.from(document.querySelectorAll('.y-axis-item')).map(item => {
+                return {
+                    column: item.querySelector('.y-axis-select').value,
+                    color: item.querySelector('.series-color').value
+                };
+            }),
+            chartType: selectedChartType,
+            startRow: parseInt(startRowInput.value),
+            endRow: parseInt(endRowInput.value),
+            filterColumn: filterColumnSelect.value,
+            filterValue: filterValueSelect.value,
+            chartFilterColumn: filterColumn2Select.value,
+            chartFilterValue: chartFilterValue.value,
+            chartFilterColumn2: filterColumn3Select.value,
+            chartFilterValue2: filterValue2
+        };
+        
+        console.log("Sending request with data:", JSON.stringify(requestData));
+        
+        // Send request to apply filter
+        fetch('/apply_chart_filter', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+            },
+            body: JSON.stringify(requestData)
+        })
+        .then(response => {
+            if (!response.ok) {
+                throw new Error('Network response was not ok: ' + response.status);
+            }
+            return response.json();
+        })
+        .then(data => {
+            // Remove loading message
+            document.body.removeChild(loadingMessage);
+            
+            if (data.success) {
+                console.log("Filter applied successfully, updating chart with new data");
+                console.log("Received data:", JSON.stringify(data.chartData));
+                // Update chart with filtered data based on chart type
+                updateChart(data.chartData);
+            } else {
+                console.error("Error from server:", data.error);
+                alert('Error applying filter: ' + data.error);
+            }
+        })
+        .catch(error => {
+            document.body.removeChild(loadingMessage);
+            console.error('Error applying chart filter:', error);
             alert('Error applying chart filter. Please try again.');
         });
     });
@@ -675,6 +792,11 @@ document.addEventListener('DOMContentLoaded', function() {
             const chartFilterOptions = Array.from(chartFilterValue.options).map(opt => opt.value);
             const selectedFilterValue = chartFilterValue.value;
             
+            // Get second chart filter information
+            const chartFilterColumn2 = filterColumn3Select.value;
+            const chartFilterOptions2 = Array.from(chartFilterValue2.options).map(opt => opt.value);
+            const selectedFilterValue2 = chartFilterValue2.value;
+            
             // Create loading indicator message for user feedback
             const loadingDiv = document.createElement('div');
             loadingDiv.style.cssText = 'position: fixed; top: 50%; left: 50%; transform: translate(-50%, -50%); background: rgba(0,0,0,0.8); color: white; padding: 20px; border-radius: 8px; z-index: 9999;';
@@ -689,7 +811,8 @@ document.addEventListener('DOMContentLoaded', function() {
             let completedFetches = 0;
             
             // Only process if there are filter options
-            if (chartFilterColumn && chartFilterOptions.length > 0) {
+            if ((chartFilterColumn && chartFilterOptions.length > 0) || 
+                (chartFilterColumn2 && chartFilterOptions2.length > 0)) {
                 // Save current chart data and state
                 const currentLabels = [...currentChart.data.labels];
                 const currentDatasets = JSON.parse(JSON.stringify(currentChart.data.datasets));
@@ -703,56 +826,124 @@ document.addEventListener('DOMContentLoaded', function() {
                     // Create an array of promises for fetch operations
                     const fetchPromises = [];
                     
-                    for (const filterOption of chartFilterOptions) {
-                        if (!filterOption) {
-                            // Skip empty option (All Values)
-                            continue;
-                        }
-                        
-                        // Create a promise for this fetch operation
-                        const fetchPromise = fetch('/apply_chart_filter', {
-                            method: 'POST',
-                            headers: {
-                                'Content-Type': 'application/json',
-                            },
-                            body: JSON.stringify({
-                                filename: currentFileName,
-                                sheet: currentSheetName,
-                                xAxis: xAxisSelect.value,
-                                yAxes: Array.from(document.querySelectorAll('.y-axis-item')).map(item => {
-                                    return {
-                                        column: item.querySelector('.y-axis-select').value,
-                                        color: item.querySelector('.series-color').value
-                                    };
-                                }),
-                                chartType: selectedChartType,
-                                startRow: parseInt(startRowInput.value),
-                                endRow: parseInt(endRowInput.value),
-                                filterColumn: filterColumnSelect.value,
-                                filterValue: filterValueSelect.value,
-                                chartFilterColumn: chartFilterColumn,
-                                chartFilterValue: filterOption
-                            })
-                        })
-                        .then(response => response.json())
-                        .then(data => {
-                            if (data.success) {
-                                // Store the filtered data
-                                preFilteredData[filterOption] = data.chartData;
+                    // Process first filter options
+                    if (chartFilterColumn && chartFilterOptions.length > 0) {
+                        for (const filterOption of chartFilterOptions) {
+                            if (!filterOption) {
+                                // Skip empty option (All Values)
+                                continue;
                             }
-                            completedFetches++;
                             
-                            // Update the loading message to show progress
-                            loadingDiv.textContent = `Preparing chart data... (${completedFetches}/${fetchCount})`;
-                        })
-                        .catch(error => {
-                            console.error('Error pre-filtering data for ' + filterOption, error);
-                            completedFetches++;
-                            loadingDiv.textContent = `Preparing chart data... (${completedFetches}/${fetchCount})`;
-                        });
-                        
-                        fetchPromises.push(fetchPromise);
-                        fetchCount++;
+                            // Create a promise for this fetch operation
+                            const fetchPromise = fetch('/apply_chart_filter', {
+                                method: 'POST',
+                                headers: {
+                                    'Content-Type': 'application/json',
+                                },
+                                body: JSON.stringify({
+                                    filename: currentFileName,
+                                    sheet: currentSheetName,
+                                    xAxis: xAxisSelect.value,
+                                    yAxes: Array.from(document.querySelectorAll('.y-axis-item')).map(item => {
+                                        return {
+                                            column: item.querySelector('.y-axis-select').value,
+                                            color: item.querySelector('.series-color').value
+                                        };
+                                    }),
+                                    chartType: selectedChartType,
+                                    startRow: parseInt(startRowInput.value),
+                                    endRow: parseInt(endRowInput.value),
+                                    filterColumn: filterColumnSelect.value,
+                                    filterValue: filterValueSelect.value,
+                                    chartFilterColumn: chartFilterColumn,
+                                    chartFilterValue: filterOption,
+                                    chartFilterColumn2: chartFilterColumn2,
+                                    chartFilterValue2: selectedFilterValue2
+                                })
+                            })
+                            .then(response => response.json())
+                            .then(data => {
+                                if (data.success) {
+                                    // Store the filtered data
+                                    if (!preFilteredData[filterOption]) {
+                                        preFilteredData[filterOption] = {};
+                                    }
+                                    preFilteredData[filterOption] = data.chartData;
+                                }
+                                completedFetches++;
+                                
+                                // Update the loading message to show progress
+                                loadingDiv.textContent = `Preparing chart data... (${completedFetches}/${fetchCount})`;
+                            })
+                            .catch(error => {
+                                console.error('Error pre-filtering data for ' + filterOption, error);
+                                completedFetches++;
+                                loadingDiv.textContent = `Preparing chart data... (${completedFetches}/${fetchCount})`;
+                            });
+                            
+                            fetchPromises.push(fetchPromise);
+                            fetchCount++;
+                        }
+                    }
+                    
+                    // Process second filter options
+                    if (chartFilterColumn2 && chartFilterOptions2.length > 0) {
+                        for (const filterOption2 of chartFilterOptions2) {
+                            if (!filterOption2) {
+                                // Skip empty option (All Values)
+                                continue;
+                            }
+                            
+                            // Create a promise for this fetch operation
+                            const fetchPromise = fetch('/apply_chart_filter', {
+                                method: 'POST',
+                                headers: {
+                                    'Content-Type': 'application/json',
+                                },
+                                body: JSON.stringify({
+                                    filename: currentFileName,
+                                    sheet: currentSheetName,
+                                    xAxis: xAxisSelect.value,
+                                    yAxes: Array.from(document.querySelectorAll('.y-axis-item')).map(item => {
+                                        return {
+                                            column: item.querySelector('.y-axis-select').value,
+                                            color: item.querySelector('.series-color').value
+                                        };
+                                    }),
+                                    chartType: selectedChartType,
+                                    startRow: parseInt(startRowInput.value),
+                                    endRow: parseInt(endRowInput.value),
+                                    filterColumn: filterColumnSelect.value,
+                                    filterValue: filterValueSelect.value,
+                                    chartFilterColumn: chartFilterColumn,
+                                    chartFilterValue: selectedFilterValue,
+                                    chartFilterColumn2: chartFilterColumn2,
+                                    chartFilterValue2: filterOption2
+                                })
+                            })
+                            .then(response => response.json())
+                            .then(data => {
+                                if (data.success) {
+                                    // Store the filtered data for second filter
+                                    if (!preFilteredData.filter2) {
+                                        preFilteredData.filter2 = {};
+                                    }
+                                    preFilteredData.filter2[filterOption2] = data.chartData;
+                                }
+                                completedFetches++;
+                                
+                                // Update the loading message to show progress
+                                loadingDiv.textContent = `Preparing chart data... (${completedFetches}/${fetchCount})`;
+                            })
+                            .catch(error => {
+                                console.error('Error pre-filtering data for filter2 ' + filterOption2, error);
+                                completedFetches++;
+                                loadingDiv.textContent = `Preparing chart data... (${completedFetches}/${fetchCount})`;
+                            });
+                            
+                            fetchPromises.push(fetchPromise);
+                            fetchCount++;
+                        }
                     }
                     
                     // Wait for all fetch operations to complete
@@ -775,14 +966,14 @@ document.addEventListener('DOMContentLoaded', function() {
                     // Generate the appropriate HTML based on chart type
                     generateAndDownloadChartHTML(chartConfig, chartTitle, description, additionalInfo, 
                                                chartFilterColumn, chartFilterOptions, selectedFilterValue, 
-                                               preFilteredData);
+                                               preFilteredData, chartFilterColumn2, chartFilterOptions2, selectedFilterValue2);
                 });
             } else {
                 // No filter options, just generate HTML
                 document.body.removeChild(loadingDiv);
                 generateAndDownloadChartHTML(chartConfig, chartTitle, description, additionalInfo, 
                                            chartFilterColumn, chartFilterOptions, selectedFilterValue, 
-                                           preFilteredData);
+                                           preFilteredData, chartFilterColumn2, chartFilterOptions2, selectedFilterValue2);
             }
         }
     });
@@ -790,37 +981,40 @@ document.addEventListener('DOMContentLoaded', function() {
     // Generate and download HTML for the current chart
     function generateAndDownloadChartHTML(chartConfig, chartTitle, description, additionalInfo, 
                                          chartFilterColumn, chartFilterOptions, selectedFilterValue, 
-                                         preFilteredData) {
-        let html = '';
-        
-        // Use appropriate chart handler based on chart type
+                                         preFilteredData, chartFilterColumn2, chartFilterOptions2, selectedFilterValue2) {
+        // Get chart type handler
+        let chartHandler;
         if (selectedChartType === 'line') {
-            html = LineChartHandler.generateLineChartHTML(
-                chartConfig, chartTitle, description, additionalInfo,
-                chartFilterColumn, chartFilterOptions, selectedFilterValue, preFilteredData
-            );
+            chartHandler = LineChartHandler;
         } else if (selectedChartType === 'bar') {
-            html = BarChartHandler.generateBarChartHTML(
-                chartConfig, chartTitle, description, additionalInfo,
-                chartFilterColumn, chartFilterOptions, selectedFilterValue, preFilteredData
-            );
+            chartHandler = BarChartHandler;
         } else if (selectedChartType === 'stackedBar') {
-            html = StackedBarChartHandler.generateStackedBarChartHTML(
-                chartConfig, chartTitle, description, additionalInfo,
-                chartFilterColumn, chartFilterOptions, selectedFilterValue, preFilteredData
-            );
+            chartHandler = StackedBarChartHandler;
         } else if (selectedChartType === 'percentStackedBar') {
-            html = PercentStackedBarChartHandler.generatePercentStackedBarChartHTML(
-                chartConfig, chartTitle, description, additionalInfo,
-                chartFilterColumn, chartFilterOptions, selectedFilterValue, preFilteredData
-            );
+            chartHandler = PercentStackedBarChartHandler;
         } else {
-            alert('Unsupported chart type for HTML export: ' + selectedChartType);
+            alert('Unsupported chart type: ' + selectedChartType);
             return;
         }
         
+        // Get chart filter column names and values
+        const chartFilterColumn1 = filterColumn2Select.value;
+        //const chartFilterColumn2 = filterColumn3Select.value;
+        
+        // Generate HTML for chart
+        let chartHTML;
+        if (selectedChartType === 'line') {
+            chartHTML = chartHandler.generateLineChartHTML(chartConfig, chartTitle, description, additionalInfo, chartFilterColumn1, chartFilterOptions, selectedFilterValue, preFilteredData, chartFilterColumn2, chartFilterOptions2, selectedFilterValue2);
+        } else if (selectedChartType === 'bar') {
+            chartHTML = chartHandler.generateBarChartHTML(chartConfig, chartTitle, description, additionalInfo, chartFilterColumn1, chartFilterOptions, selectedFilterValue, preFilteredData, chartFilterColumn2, chartFilterOptions2, selectedFilterValue2);
+        } else if (selectedChartType === 'stackedBar') {
+            chartHTML = chartHandler.generateStackedBarChartHTML(chartConfig, chartTitle, description, additionalInfo, chartFilterColumn1, chartFilterOptions, selectedFilterValue, preFilteredData, chartFilterColumn2, chartFilterOptions2, selectedFilterValue2);
+        } else if (selectedChartType === 'percentStackedBar') {
+            chartHTML = chartHandler.generatePercentStackedBarChartHTML(chartConfig, chartTitle, description, additionalInfo, chartFilterColumn1, chartFilterOptions, selectedFilterValue, preFilteredData, chartFilterColumn2, chartFilterOptions2, selectedFilterValue2);
+        }
+        
         // Create download link
-        const blob = new Blob([html], { type: 'text/html' });
+        const blob = new Blob([chartHTML], { type: 'text/html' });
         const link = document.createElement('a');
         link.download = chartTitle.replace(/\s+/g, '_') + '.html';
         link.href = URL.createObjectURL(blob);

@@ -53,6 +53,9 @@ const LineChartHandler = {
             );
         });
         
+
+
+        
         // Set chart configuration for line charts
         const config = {
             type: 'line',
@@ -84,7 +87,8 @@ const LineChartHandler = {
                             callback: function(value) {
                                 return formatIndianNumber(value);
                             },
-                            maxTicksLimit: 6,
+                            precision: 0, 
+                            maxTicksLimit: 7,  
                             color: '#333',
 
                         }
@@ -190,7 +194,7 @@ const LineChartHandler = {
     },
     
     // Generate HTML for exporting line chart
-    generateLineChartHTML: function(chartConfig, chartTitle, description, additionalInfo, chartFilterColumn, chartFilterOptions, selectedFilterValue, preFilteredData) {
+    generateLineChartHTML: function(chartConfig, chartTitle, description, additionalInfo, chartFilterColumn, chartFilterOptions, selectedFilterValue, preFilteredData, chartFilterColumn2, chartFilterOptions2, selectedFilterValue2) {
         return `
 <!DOCTYPE html>
 <html>
@@ -241,6 +245,7 @@ const LineChartHandler = {
             display: flex;
             align-items: center;
             margin-left:45px;
+            margin-right: 20px;
         }
         .chart-filter-group label {
             margin-right: 5px;
@@ -310,15 +315,26 @@ const LineChartHandler = {
             <div class="chart-title">${chartTitle}</div>
             <img class="chart-logo" src="logo.png" alt="ChartFlask Logo">
         </div>
-        ${chartFilterColumn ? `
+        ${chartFilterColumn || chartFilterColumn2 ? `
         <div class="chart-filter-controls">
+            ${chartFilterColumn ? `
             <div class="chart-filter-group">
-                <label for="chartFilter">${chartFilterColumn}</label>
+                <label for="chartFilter">${chartFilterColumn}:</label>
                 <select id="chartFilter" onchange="filterChartData()">
                     <option value="">All</option>
                     ${chartFilterOptions.map(value => value ? `<option value="${value}" ${value === selectedFilterValue ? 'selected' : ''}>${value}</option>` : '').join('')}
                 </select>
             </div>
+            ` : ''}
+            ${chartFilterColumn2 ? `
+            <div class="chart-filter-group">
+                <label for="chartFilter2">${chartFilterColumn2}:</label>
+                <select id="chartFilter2" onchange="filterChartData()">
+                    <option value="">All</option>
+                    ${chartFilterOptions2 && chartFilterOptions2.length > 0 ? chartFilterOptions2.map(value => value ? `<option value="${value}" ${value === selectedFilterValue2 ? 'selected' : ''}>${value}</option>` : '').join('') : ''}
+                </select>
+            </div>
+            ` : ''}
         </div>
         ` : ''}
         <div class="chart-canvas-container">
@@ -455,6 +471,7 @@ const LineChartHandler = {
                         }
                     },
                     y: {
+                        min: 0,
                         ...chartOptions.scales?.y,
                          offset: hasMin,
                         grid: {
@@ -465,7 +482,7 @@ const LineChartHandler = {
                             callback: function(value) {
                                 return formatIndianNumber(value);
                             },
-                             precision: 0,  // No decimals
+                            precision: 0,  // No decimals
                             maxTicksLimit: 7,  // Maximum 7 ticks
     
                             color: '#333'       // Optional: customize tick color
@@ -476,10 +493,11 @@ const LineChartHandler = {
             }
         });
 
-        ${chartFilterColumn ? `
+        ${(chartFilterColumn || chartFilterColumn2) ? `
         // Function to filter chart data based on selected value
         function filterChartData() {
-            const filterValue = document.getElementById('chartFilter').value;
+            const filterValue = document.getElementById('chartFilter') ? document.getElementById('chartFilter').value : '';
+            const filterValue2 = document.getElementById('chartFilter2') ? document.getElementById('chartFilter2').value : '';
             
             if (!chart || !chart.data) return;
             
@@ -490,17 +508,54 @@ const LineChartHandler = {
                     visibility.push(!chart.getDatasetMeta(index).hidden);
                 });
                 
-                // Handle the "All Values" option
-                if (!filterValue) {
+                // Handle the "All Values" option for both filters
+                if (!filterValue && !filterValue2) {
                     // Reset to full data
                     chart.data.labels = originalChartData.labels;
                     chart.data.datasets.forEach((dataset, i) => {
                         dataset.data = originalChartData.datasets[i].data;
                     });
-                // Use pre-filtered data if available
-                } else if (preFilteredData && preFilteredData[filterValue]) {
-                    // Use pre-filtered data from the server
+                } 
+                // Check for first filter
+                else if (filterValue && !filterValue2 && preFilteredData[filterValue]) {
+                    // Use pre-filtered data from the server for filter 1
                     const filteredData = preFilteredData[filterValue];
+                    
+                    // Check if we have valid data
+                    if (filteredData && filteredData.labels && filteredData.datasets) {
+                        // Update labels and datasets
+                        chart.data.labels = filteredData.labels;
+                        
+                        // Update each dataset's data while preserving other properties
+                        filteredData.datasets.forEach((dataset, i) => {
+                            if (i < chart.data.datasets.length) {
+                                chart.data.datasets[i].data = dataset.data;
+                            }
+                        });
+                    }
+                } 
+                // Check for second filter
+                else if (!filterValue && filterValue2 && preFilteredData.filter2 && preFilteredData.filter2[filterValue2]) {
+                    // Use pre-filtered data from the server for filter 2
+                    const filteredData = preFilteredData.filter2[filterValue2];
+                    
+                    // Check if we have valid data
+                    if (filteredData && filteredData.labels && filteredData.datasets) {
+                        // Update labels and datasets
+                        chart.data.labels = filteredData.labels;
+                        
+                        // Update each dataset's data while preserving other properties
+                        filteredData.datasets.forEach((dataset, i) => {
+                            if (i < chart.data.datasets.length) {
+                                chart.data.datasets[i].data = dataset.data;
+                            }
+                        });
+                    }
+                }
+                // If both filters have values, use the second one (simplification)
+                else if (filterValue && filterValue2 && preFilteredData.filter2 && preFilteredData.filter2[filterValue2]) {
+                    // Use pre-filtered data from the server for filter 2
+                    const filteredData = preFilteredData.filter2[filterValue2];
                     
                     // Check if we have valid data
                     if (filteredData && filteredData.labels && filteredData.datasets) {
@@ -516,12 +571,13 @@ const LineChartHandler = {
                     }
                 } else {
                     // Fallback to client-side filtering if no pre-filtered data is available
-                    console.log("No pre-filtered data available for " + filterValue + ", using fallback filter");
+                    console.log("No pre-filtered data available, using fallback filter");
                     
                     // Try exact match in x-axis labels (categorical data)
                     const matchingIndices = [];
                     originalChartData.labels.forEach((label, i) => {
-                        if (String(label).toLowerCase() === String(filterValue).toLowerCase()) {
+                        if ((filterValue && String(label).toLowerCase() === String(filterValue).toLowerCase()) ||
+                            (filterValue2 && String(label).toLowerCase() === String(filterValue2).toLowerCase())) {
                             matchingIndices.push(i);
                         }
                     });
@@ -534,7 +590,7 @@ const LineChartHandler = {
                         });
                     } else {
                         // No exact matches found, show message
-                        displayFilterMessage(filterValue);
+                        displayFilterMessage(filterValue || filterValue2);
                     }
                 }
                 
@@ -550,7 +606,7 @@ const LineChartHandler = {
             } catch (error) {
                 console.error("Error filtering chart:", error);
                 // Show error message and reset to full data
-                displayFilterMessage(filterValue, true);
+                displayFilterMessage(filterValue || filterValue2, true);
                 
                 // Reset to full data
                 chart.data.labels = originalChartData.labels;
@@ -606,7 +662,7 @@ const LineChartHandler = {
         });
         
         // Apply the initial filter value if one is selected
-        ${selectedFilterValue ? 'setTimeout(() => filterChartData(), 100);' : ''}
+        ${(selectedFilterValue || selectedFilterValue2) ? 'setTimeout(() => filterChartData(), 100);' : ''}
     </script>
 </body>
 </html>`;

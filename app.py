@@ -137,6 +137,7 @@ def generate_chart():
     filter_column = data.get('filterColumn')
     filter_value = data.get('filterValue')
     chart_filter_column = data.get('chartFilterColumn')
+    chart_filter_column2 = data.get('chartFilterColumn2')
     start_row = data.get('startRow', 0)
     end_row = data.get('endRow')
     
@@ -183,12 +184,20 @@ def generate_chart():
             # Convert to serializable
             chart_filter_values = convert_to_serializable(chart_filter_values)
         
+        # Prepare second chart filter values if specified
+        chart_filter_values2 = []
+        if chart_filter_column2:
+            chart_filter_values2 = df[chart_filter_column2].dropna().unique().tolist()
+            # Convert to serializable
+            chart_filter_values2 = convert_to_serializable(chart_filter_values2)
+        
         # Test JSON serialization to catch any issues
         try:
             test_json = json.dumps({
                 'chartData': chart_data,
                 'chartType': chart_type,
-                'chartFilterValues': chart_filter_values
+                'chartFilterValues': chart_filter_values,
+                'chartFilterValues2': chart_filter_values2
             }, cls=CustomJSONEncoder)
             print(f"JSON serialization test successful, size: {len(test_json)}")
         except Exception as e:
@@ -201,12 +210,14 @@ def generate_chart():
                 print("Attempting last resort fix...")
                 chart_data = force_json_serializable(chart_data)
                 chart_filter_values = force_json_serializable(chart_filter_values)
+                chart_filter_values2 = force_json_serializable(chart_filter_values2)
         
         return jsonify({
             'success': True,
             'chartData': chart_data,
             'chartType': chart_type,
-            'chartFilterValues': chart_filter_values
+            'chartFilterValues': chart_filter_values,
+            'chartFilterValues2': chart_filter_values2
         })
     except Exception as e:
         import traceback
@@ -297,6 +308,8 @@ def apply_chart_filter():
     filter_value = data.get('filterValue')
     chart_filter_column = data.get('chartFilterColumn')
     chart_filter_value = data.get('chartFilterValue')
+    chart_filter_column2 = data.get('chartFilterColumn2')
+    chart_filter_value2 = data.get('chartFilterValue2')
     start_row = data.get('startRow', 0)
     end_row = data.get('endRow')
     
@@ -333,6 +346,10 @@ def apply_chart_filter():
         # Apply chart filter if specified
         if chart_filter_column and chart_filter_value:
             df = df[df[chart_filter_column] == chart_filter_value]
+        
+        # Apply second chart filter if specified
+        if chart_filter_column2 and chart_filter_value2:
+            df = df[df[chart_filter_column2] == chart_filter_value2]
         
         # Process data for chart
         chart_data = process_chart_data(df, x_axis, y_axes, chart_type)

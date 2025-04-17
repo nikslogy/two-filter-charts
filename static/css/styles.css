@@ -348,28 +348,39 @@ header h1 {
 .chart-filter-controls {
     display: flex;
     align-items: center;
-    padding: 10px 20px;
-    background-color: #f8f9fa;
-    border-radius: 8px;
-    margin-bottom: 20px;
+    justify-content: flex-start;
+    margin-bottom: 15px;
+    padding: 10px;
+    background-color: rgba(245, 245, 245, 0.5);
+    border-radius: 6px;
 }
 
 .chart-filter-group {
     display: flex;
     align-items: center;
-    flex: 1;
+    margin-right: 20px;
 }
 
 .chart-filter-group label {
-    margin-right: 10px;
-    font-weight: 600;
+    margin-right: 8px;
+    font-weight: 500;
+    font-size: 14px;
+    color: #333;
 }
 
 .chart-filter-group select {
-    padding: 8px;
-    border: 1px solid #ced4da;
+    padding: 6px 10px;
+    border: 1px solid #ccc;
     border-radius: 4px;
-    min-width: 200px;
+    min-width: 180px;
+    font-size: 14px;
+    background-color: white;
+}
+
+.chart-filter-group select:focus {
+    outline: none;
+    border-color: #1a4570;
+    box-shadow: 0 0 0 2px rgba(26, 69, 112, 0.2);
 }
 
 /* Chart Type Selection */
