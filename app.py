@@ -417,15 +417,26 @@ def process_chart_data(df, x_axis, y_axes, chart_type):
                     # No data or all NaN values
                     y_data.append(None)  # Use None for missing data
                 else:
-                    # We have some data, sum it (ignoring NaNs)
-                    value = matching_rows[y_axis].sum(skipna=True)
-                    # Convert NumPy types to Python native types
-                    if isinstance(value, (np.integer, np.floating)):
-                        value = float(value) if isinstance(value, np.floating) else int(value)
-                        # Check for NaN
-                        if np.isnan(value):
-                            value = None
-                    y_data.append(value)
+                    # Check if the values are numeric
+                    try:
+                        # Convert to numeric, coerce errors to NaN
+                        numeric_series = pd.to_numeric(matching_rows[y_axis], errors='coerce')
+                        # Sum only numeric values
+                        value = numeric_series.sum(skipna=True)
+                        # Check if the result is NaN (all values were non-numeric)
+                        if pd.isna(value):
+                            y_data.append(None)
+                        else:
+                            # Convert NumPy types to Python native types
+                            if isinstance(value, (np.integer, np.floating)):
+                                value = float(value) if isinstance(value, np.floating) else int(value)
+                                # Check for NaN
+                                if np.isnan(value):
+                                    value = None
+                            y_data.append(value)
+                    except Exception as e:
+                        print(f"Error processing value for {y_axis} at {x_val}: {str(e)}")
+                        y_data.append(None)  # Use None for error cases
             
             # Create dataset with common properties for both line and bar charts
             dataset = {
