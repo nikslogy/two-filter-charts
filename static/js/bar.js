@@ -417,6 +417,122 @@ const BarChartHandler = {
         
         // Pre-filtered data for each district
         const preFilteredData = ${JSON.stringify(preFilteredData, null, 2)};
+        
+        // Function to get URL query parameters
+        function getQueryParam(param) {
+            const urlParams = new URLSearchParams(window.location.search);
+            return urlParams.get(param);
+        }
+        
+        // Function to aggregate data for all talukas in a district
+        function getDistrictAggregateData(district) {
+            if (!preFilteredData[district]) return null;
+            
+            const talukas = Object.keys(preFilteredData[district]);
+            if (talukas.length === 0) return null;
+            
+            // Use the first taluka to get the labels (assuming all talukas in a district have the same labels)
+            const firstTaluka = talukas[0];
+            const labels = [...preFilteredData[district][firstTaluka].labels];
+            
+            // Initialize aggregated data array with zeros
+            let aggregatedData = new Array(labels.length).fill(0);
+            
+            // Sum data from all talukas for each category
+            talukas.forEach(taluka => {
+                const talukaData = preFilteredData[district][taluka];
+                if (talukaData && talukaData.datasets && talukaData.datasets[0] && talukaData.datasets[0].data) {
+                    talukaData.datasets[0].data.forEach((value, index) => {
+                        // Handle null/undefined values as 0 for aggregation
+                        if (value !== null && value !== undefined && !isNaN(value)) {
+                            aggregatedData[index] += value;
+                        }
+                    });
+                }
+            });
+            
+            // Create a dataset object with the aggregated data
+            return {
+                labels: labels,
+                datasets: [{
+                    backgroundColor: "#1a4570",
+                    borderColor: "#1a4570",
+                    borderWidth: 1,
+                    data: aggregatedData,
+                    label: "Total",
+                }]
+            };
+        }
+        
+        // Function to populate taluka dropdown based on selected district
+        function populateTalukaDropdown(district) {
+            const talukaDropdown = document.getElementById('chartFilter');
+            if (!talukaDropdown) return;
+            
+            // Clear existing options except the "All" option
+            while (talukaDropdown.options.length > 1) {
+                talukaDropdown.remove(1);
+            }
+            
+            if (!district || !preFilteredData[district]) {
+                // If no district specified or invalid district, show all talukas
+                const allTalukas = [];
+                
+                // Collect all talukas from all districts
+                Object.keys(preFilteredData).forEach(districtName => {
+                    // Make sure this is a district object with taluka children, not a flat structure
+                    if (typeof preFilteredData[districtName] === 'object' && !preFilteredData[districtName].labels) {
+                        Object.keys(preFilteredData[districtName]).forEach(talukaName => {
+                            if (!allTalukas.includes(talukaName)) {
+                                allTalukas.push(talukaName);
+                            }
+                        });
+                    }
+                });
+                
+                // Sort talukas alphabetically
+                allTalukas.sort();
+                
+                // Add all talukas to dropdown
+                allTalukas.forEach(taluka => {
+                    const option = document.createElement('option');
+                    option.value = taluka;
+                    option.text = taluka;
+                    talukaDropdown.add(option);
+                });
+            } else {
+                // Show only talukas for the specified district
+                const districtTalukas = Object.keys(preFilteredData[district]);
+                
+                // Sort talukas alphabetically
+                districtTalukas.sort();
+                
+                // Add district's talukas to dropdown
+                districtTalukas.forEach(taluka => {
+                    const option = document.createElement('option');
+                    option.value = taluka;
+                    option.text = taluka;
+                    talukaDropdown.add(option);
+                });
+                
+                // Update the chart title to include district name
+                const chartTitle = document.querySelector('.chart-title');
+                if (chartTitle) {
+                    chartTitle.textContent = \`\${district} District - Bar Chart\`;
+                }
+                
+                // Update filter data JSON
+                const chartFilterData = document.getElementById('chart-filter-data');
+                if (chartFilterData) {
+                    const filterDataObj = JSON.parse(chartFilterData.textContent);
+                    filterDataObj.mainFilterValue = district;
+                    chartFilterData.textContent = JSON.stringify(filterDataObj);
+                }
+            }
+        }
+        
+        // Determine if we're using district-taluka hierarchy
+        const isHierarchicalData = ${mainFilterColumn === 'District' && chartFilterColumn === 'Taluka'};
 
         // Chart configuration
         const ctx = document.getElementById('myChart').getContext('2d');
@@ -511,10 +627,47 @@ const BarChartHandler = {
         });
 
         ${(chartFilterColumn || chartFilterColumn2) ? `
+        // Function to check if preFilteredData has hierarchical structure
+        function hasHierarchicalStructure() {
+            if (!preFilteredData) return false;
+            
+            // Check if the first level keys contain data objects with labels and datasets properties
+            const firstLevelKeys = Object.keys(preFilteredData);
+            if (firstLevelKeys.length === 0) return false;
+            
+            // Check first key - if it has labels/datasets, it's flat; if it has child objects, it's hierarchical
+            const firstKey = firstLevelKeys[0];
+            const firstValue = preFilteredData[firstKey];
+            
+            // Check if this is a data object (has labels and datasets)
+            if (firstValue && firstValue.labels && firstValue.datasets) {
+                return false; // Flat structure
+            }
+            
+            // Check if this is a district with taluka children
+            if (firstValue && typeof firstValue === 'object') {
+                const childKeys = Object.keys(firstValue);
+                if (childKeys.length > 0) {
+                    const childValue = firstValue[childKeys[0]];
+                    // If child has labels and datasets, this is hierarchical
+                    if (childValue && childValue.labels && childValue.datasets) {
+                        return true; // Hierarchical structure
+                    }
+                }
+            }
+            
+            return false;
+        }
+        
         // Function to filter chart data based on selected value
         function filterChartData() {
             const filterValue = document.getElementById('chartFilter') ? document.getElementById('chartFilter').value : '';
             const filterValue2 = document.getElementById('chartFilter2') ? document.getElementById('chartFilter2').value : '';
+            
+            // Get the district from URL or filter data
+            const district = getQueryParam('district') || 
+                            (document.getElementById('chart-filter-data') ? 
+                             JSON.parse(document.getElementById('chart-filter-data').textContent).mainFilterValue : '');
             
             // Update the chart filter data in the JSON
             const chartFilterData = document.getElementById('chart-filter-data');
@@ -536,13 +689,108 @@ const BarChartHandler = {
                 
                 // Handle the "All Values" option for both filters
                 if (!filterValue && !filterValue2) {
-                    // Reset to full data
-                    chart.data.labels = originalChartData.labels;
-                    chart.data.datasets.forEach((dataset, i) => {
-                        dataset.data = originalChartData.datasets[i].data;
-                    });
+                    // If district is specified, check for district-specific data
+                    if (district && preFilteredData[district]) {
+                        // Check if this district has direct data or is a container for talukas
+                        if (preFilteredData[district].labels) {
+                            // District has direct data (not talukas)
+                            chart.data.labels = preFilteredData[district].labels;
+                            preFilteredData[district].datasets.forEach((dataset, i) => {
+                                if (i < chart.data.datasets.length) {
+                                    chart.data.datasets[i].data = dataset.data;
+                                    chart.data.datasets[i].label = dataset.label || chart.data.datasets[i].label;
+                                }
+                            });
+                        } else {
+                            // District has talukas - show aggregate data for all talukas
+                            const districtData = getDistrictAggregateData(district);
+                            if (districtData) {
+                                chart.data.labels = districtData.labels;
+                                districtData.datasets.forEach((dataset, i) => {
+                                    if (i < chart.data.datasets.length) {
+                                        chart.data.datasets[i].data = dataset.data;
+                                        chart.data.datasets[i].label = dataset.label;
+                                    }
+                                });
+                            } else {
+                                // Reset to full data if aggregation fails
+                                chart.data.labels = originalChartData.labels;
+                                chart.data.datasets.forEach((dataset, i) => {
+                                    dataset.data = originalChartData.datasets[i].data;
+                                    dataset.label = originalChartData.datasets[i].label;
+                                });
+                            }
+                        }
+                    } else {
+                        // Reset to full data when no district is specified
+                        chart.data.labels = originalChartData.labels;
+                        chart.data.datasets.forEach((dataset, i) => {
+                            dataset.data = originalChartData.datasets[i].data;
+                            dataset.label = originalChartData.datasets[i].label;
+                        });
+                    }
                 } 
-                // Check for first filter
+                // Check for first filter - look for taluka in district if district is specified
+                else if (filterValue && district && preFilteredData[district] && preFilteredData[district][filterValue]) {
+                    // Use pre-filtered data from the specified district
+                    const filteredData = preFilteredData[district][filterValue];
+                    
+                    // Check if we have valid data
+                    if (filteredData && filteredData.labels && filteredData.datasets) {
+                        // Update labels and datasets
+                        chart.data.labels = filteredData.labels;
+                        
+                        // Update each dataset's data while preserving other properties
+                        filteredData.datasets.forEach((dataset, i) => {
+                            if (i < chart.data.datasets.length) {
+                                chart.data.datasets[i].data = dataset.data;
+                                chart.data.datasets[i].label = \`\${filterValue} - \${dataset.label || 'Data'}\`;
+                            }
+                        });
+                    }
+                }
+                // Check for first filter across all districts if hierarchical
+                else if (filterValue && hasHierarchicalStructure()) {
+                    // Search for the taluka across all districts
+                    let filteredData = null;
+                    let foundDistrict = '';
+                    
+                    // Iterate through districts to find the filtered taluka
+                    for (const districtName in preFilteredData) {
+                        if (preFilteredData[districtName][filterValue]) {
+                            filteredData = preFilteredData[districtName][filterValue];
+                            foundDistrict = districtName;
+                            break;
+                        }
+                    }
+                    
+                    if (filteredData) {
+                        // Update labels and datasets
+                        chart.data.labels = filteredData.labels;
+                        filteredData.datasets.forEach((dataset, i) => {
+                            if (i < chart.data.datasets.length) {
+                                chart.data.datasets[i].data = dataset.data;
+                                chart.data.datasets[i].label = \`\${filterValue} (\${foundDistrict}) - \${dataset.label || 'Data'}\`;
+                            }
+                        });
+                    } else {
+                        // If not found in hierarchy, try flat structure as fallback
+                        if (preFilteredData[filterValue]) {
+                            const flatData = preFilteredData[filterValue];
+                            chart.data.labels = flatData.labels;
+                            flatData.datasets.forEach((dataset, i) => {
+                                if (i < chart.data.datasets.length) {
+                                    chart.data.datasets[i].data = dataset.data;
+                                    chart.data.datasets[i].label = dataset.label || chart.data.datasets[i].label;
+                                }
+                            });
+                        } else {
+                            // No data found, display message
+                            displayFilterMessage(filterValue);
+                        }
+                    }
+                }
+                // Check for regular first filter (non-hierarchical)
                 else if (filterValue && !filterValue2 && preFilteredData[filterValue]) {
                     // Use pre-filtered data from the server for filter 1
                     const filteredData = preFilteredData[filterValue];
@@ -556,6 +804,7 @@ const BarChartHandler = {
                         filteredData.datasets.forEach((dataset, i) => {
                             if (i < chart.data.datasets.length) {
                                 chart.data.datasets[i].data = dataset.data;
+                                chart.data.datasets[i].label = dataset.label || chart.data.datasets[i].label;
                             }
                         });
                     }
@@ -574,6 +823,7 @@ const BarChartHandler = {
                         filteredData.datasets.forEach((dataset, i) => {
                             if (i < chart.data.datasets.length) {
                                 chart.data.datasets[i].data = dataset.data;
+                                chart.data.datasets[i].label = dataset.label || chart.data.datasets[i].label;
                             }
                         });
                     }
@@ -592,6 +842,7 @@ const BarChartHandler = {
                         filteredData.datasets.forEach((dataset, i) => {
                             if (i < chart.data.datasets.length) {
                                 chart.data.datasets[i].data = dataset.data;
+                                chart.data.datasets[i].label = dataset.label || chart.data.datasets[i].label;
                             }
                         });
                     }
@@ -638,6 +889,7 @@ const BarChartHandler = {
                 chart.data.labels = originalChartData.labels;
                 chart.data.datasets.forEach((dataset, i) => {
                     dataset.data = originalChartData.datasets[i].data;
+                    dataset.label = originalChartData.datasets[i].label;
                 });
                 chart.update();
             }
@@ -687,8 +939,32 @@ const BarChartHandler = {
             link.click();
         });
         
-        // Apply the initial filter value if one is selected
-        ${selectedFilterValue ? 'setTimeout(() => filterChartData(), 100);' : ''}
+        // Initialize the page based on URL parameters
+        document.addEventListener('DOMContentLoaded', function() {
+            // Check for district in URL parameters
+            const district = getQueryParam('district');
+            
+            // Populate the taluka dropdown based on the district
+            populateTalukaDropdown(district);
+            
+            // If there's a taluka parameter, select it in the dropdown
+            const taluka = getQueryParam('taluka');
+            if (taluka) {
+                const talukaDropdown = document.getElementById('chartFilter');
+                if (talukaDropdown) {
+                    // Find and select the option
+                    for (let i = 0; i < talukaDropdown.options.length; i++) {
+                        if (talukaDropdown.options[i].value === taluka) {
+                            talukaDropdown.selectedIndex = i;
+                            break;
+                        }
+                    }
+                }
+            }
+            
+            // Apply the filter based on URL parameters
+            filterChartData();
+        });
     </script>
 </body>
 </html>`;
@@ -725,7 +1001,7 @@ function formatIndianNumber(num) {
         // Now we format the remaining digits with commas after every 2 digits
         let formattedRemaining = '';
         if (remaining) {
-            formattedRemaining = remaining.replace(/\B(?=(\d{2})+(?!\d))/g, ',');
+            formattedRemaining = remaining.replace(/\\B(?=(\\d{2})+(?!\\d))/g, ',');
         }
         
         // Combine the parts
