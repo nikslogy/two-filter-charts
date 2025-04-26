@@ -348,7 +348,7 @@ const PercentStackedBarChartHandler = {
     },
     
     // Generate HTML for exporting percent stacked bar chart
-    generatePercentStackedBarChartHTML: function(chartConfig, chartTitle, description, additionalInfo, chartFilterColumn, chartFilterOptions, selectedFilterValue, preFilteredData, chartFilterColumn2, chartFilterOptions2, selectedFilterValue2) {
+    generatePercentStackedBarChartHTML: function(chartConfig, chartTitle, description, additionalInfo, chartFilterColumn, chartFilterOptions, selectedFilterValue, preFilteredData, chartFilterColumn2, chartFilterOptions2, selectedFilterValue2, mainFilterColumn, mainFilterValue) {
         return `
 <!DOCTYPE html>
 <html>
@@ -483,6 +483,20 @@ const PercentStackedBarChartHandler = {
     </style>
 </head>
 <body>
+    <!-- ChartFlask Chart Data -->
+    <script type="application/json" id="chart-filter-data">
+        ${JSON.stringify({
+            chartTitle: chartTitle,
+            mainFilterColumn: mainFilterColumn || '',
+            mainFilterValue: mainFilterValue || '',
+            filterColumn: chartFilterColumn,
+            selectedFilterValue: selectedFilterValue,
+            filterColumn2: chartFilterColumn2,
+            selectedFilterValue2: selectedFilterValue2,
+            chartType: 'percentStackedBar'
+        })}
+    </script>
+
     <div class="chart-container">
         <div class="chart-header">
             <div class="chart-title">${chartTitle}</div>
@@ -700,6 +714,15 @@ const PercentStackedBarChartHandler = {
 function filterChartData() {
     const filterValue = document.getElementById('chartFilter') ? document.getElementById('chartFilter').value : '';
     const filterValue2 = document.getElementById('chartFilter2') ? document.getElementById('chartFilter2').value : '';
+    
+    // Update the chart filter data in the JSON
+    const chartFilterData = document.getElementById('chart-filter-data');
+    if (chartFilterData) {
+        const filterDataObj = JSON.parse(chartFilterData.textContent);
+        filterDataObj.selectedFilterValue = filterValue;
+        filterDataObj.selectedFilterValue2 = filterValue2;
+        chartFilterData.textContent = JSON.stringify(filterDataObj);
+    }
     
     if (!chart || !chart.data) return;
     

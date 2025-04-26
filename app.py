@@ -313,6 +313,10 @@ def apply_chart_filter():
     start_row = data.get('startRow', 0)
     end_row = data.get('endRow')
     
+    # New parameter to identify parent-child relationship for hierarchical filters
+    district_column = data.get('districtColumn')  # Column name for districts
+    taluka_column = data.get('talukaColumn')      # Column name for talukas
+    
     if not filename or not sheet_name:
         return jsonify({
             'success': False, 
@@ -354,6 +358,22 @@ def apply_chart_filter():
         # Process data for chart
         chart_data = process_chart_data(df, x_axis, y_axes, chart_type)
         
+        # Include parent-child hierarchy information if hierarchical fields are specified
+        hierarchy_info = None
+        if district_column and taluka_column and chart_filter_column == taluka_column:
+            # Get the parent district for this taluka (if available)
+            if chart_filter_value and not df.empty:
+                matching_rows = df[df[taluka_column] == chart_filter_value]
+                if not matching_rows.empty and district_column in matching_rows.columns:
+                    parent_districts = matching_rows[district_column].unique().tolist()
+                    if parent_districts:
+                        hierarchy_info = {
+                            'parentColumn': district_column,
+                            'childColumn': taluka_column,
+                            'parentValues': parent_districts,
+                            'childValue': chart_filter_value
+                        }
+        
         # Convert all data to be JSON serializable
         chart_data = convert_to_serializable(chart_data)
         
@@ -379,7 +399,8 @@ def apply_chart_filter():
         return jsonify({
             'success': True,
             'chartData': chart_data,
-            'filteredRowCount': len(df)
+            'filteredRowCount': len(df),
+            'hierarchyInfo': hierarchy_info  # Include hierarchy info in response
         })
         
     except Exception as e:
