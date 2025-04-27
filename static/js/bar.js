@@ -698,7 +698,7 @@ const BarChartHandler = {
                             preFilteredData[district].datasets.forEach((dataset, i) => {
                                 if (i < chart.data.datasets.length) {
                                     chart.data.datasets[i].data = dataset.data;
-                                    chart.data.datasets[i].label = dataset.label || chart.data.datasets[i].label;
+                                    //chart.data.datasets[i].label = dataset.label || chart.data.datasets[i].label;
                                 }
                             });
                         } else {
@@ -744,7 +744,7 @@ const BarChartHandler = {
                         filteredData.datasets.forEach((dataset, i) => {
                             if (i < chart.data.datasets.length) {
                                 chart.data.datasets[i].data = dataset.data;
-                                chart.data.datasets[i].label = \`\${filterValue} - \${dataset.label || 'Data'}\`;
+                                //chart.data.datasets[i].label = \`\${filterValue} - \${dataset.label || 'Data'}\`;
                             }
                         });
                     }
@@ -770,7 +770,7 @@ const BarChartHandler = {
                         filteredData.datasets.forEach((dataset, i) => {
                             if (i < chart.data.datasets.length) {
                                 chart.data.datasets[i].data = dataset.data;
-                                chart.data.datasets[i].label = \`\${filterValue} (\${foundDistrict}) - \${dataset.label || 'Data'}\`;
+                                //chart.data.datasets[i].label = \`\${filterValue} (\${foundDistrict}) - \${dataset.label || 'Data'}\`;
                             }
                         });
                     } else {
@@ -804,7 +804,7 @@ const BarChartHandler = {
                         filteredData.datasets.forEach((dataset, i) => {
                             if (i < chart.data.datasets.length) {
                                 chart.data.datasets[i].data = dataset.data;
-                                chart.data.datasets[i].label = dataset.label || chart.data.datasets[i].label;
+                                //chart.data.datasets[i].label = dataset.label || chart.data.datasets[i].label;
                             }
                         });
                     }
