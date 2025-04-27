@@ -451,7 +451,7 @@ const LineChartHandler = {
                     borderWidth: 1,
                     data: aggregatedData,
                     fill: false,
-                    label: \`Total (All in \${district})\`,
+                    label: \`Total \`,
                     pointHoverRadius: 3,
                     pointRadius: 0,
                     spanGaps: false,
@@ -508,9 +508,7 @@ const LineChartHandler = {
                 
                 // Update the chart title to include district name
                 const chartTitle = document.querySelector('.chart-title');
-                if (chartTitle) {
-                    chartTitle.textContent = \`\${district} District - Taluka Data\`;
-                }
+                
                 
                 // Update filter data JSON
                 const chartFilterData = document.getElementById('chart-filter-data');
@@ -702,7 +700,7 @@ const LineChartHandler = {
                             chart.data.labels = originalChartData.labels;
                             chart.data.datasets.forEach((dataset, i) => {
                                 dataset.data = originalChartData.datasets[i].data;
-                                dataset.label = originalChartData.datasets[i].label;
+                                //dataset.label = originalChartData.datasets[i].label;
                             });
                         }
                     } else {
@@ -723,7 +721,7 @@ const LineChartHandler = {
                         filteredData.datasets.forEach((dataset, i) => {
                             if (i < chart.data.datasets.length) {
                                 chart.data.datasets[i].data = dataset.data;
-                                chart.data.datasets[i].label = \`\${filterValue} - \${dataset.label}\`;
+                                //chart.data.datasets[i].label = \`\${filterValue} - \${dataset.label}\`;
                             }
                         });
                     }
@@ -748,7 +746,7 @@ const LineChartHandler = {
                             filteredData.datasets.forEach((dataset, i) => {
                                 if (i < chart.data.datasets.length) {
                                     chart.data.datasets[i].data = dataset.data;
-                                    chart.data.datasets[i].label = \`\${filterValue} (\${foundDistrict}) - \${dataset.label}\`;
+                                    // chart.data.datasets[i].label = \`\${filterValue} (\${foundDistrict}) - \${dataset.label}\`;
                                 }
                             });
                         } else {
