@@ -230,7 +230,7 @@ document.addEventListener('DOMContentLoaded', function() {
         // Clear existing options
         filterColumnSelect.innerHTML = '<option value="">No Filter</option>';
         filterColumn2Select.innerHTML = '<option value="">No Chart Filter</option>';
-        filterColumn3Select.innerHTML = '<option value="">No Chart Filter</option>';
+        filterColumn3Select.innerHTML = '<option value="">Under Maintenance!</option>';  // Placeholder for future use
         
         // Add options for each column
         columns.forEach(column => {
