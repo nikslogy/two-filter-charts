@@ -64,7 +64,7 @@ const LineChartHandler = {
                 responsive: true,
                 maintainAspectRatio: false,
                 animation: {
-                    duration: 750,
+                    duration: 50,
                     easing: 'easeInOutQuart'
                 },
                 plugins: {

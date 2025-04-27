@@ -517,9 +517,9 @@ const BarChartHandler = {
                 
                 // Update the chart title to include district name
                 const chartTitle = document.querySelector('.chart-title');
-                if (chartTitle) {
-                    chartTitle.textContent = \`\${district} District - Bar Chart\`;
-                }
+                // if (chartTitle) {
+                //     chartTitle.textContent = \`\${district} District - Bar Chart\`;
+                // }
                 
                 // Update filter data JSON
                 const chartFilterData = document.getElementById('chart-filter-data');
@@ -770,7 +770,7 @@ const BarChartHandler = {
                         filteredData.datasets.forEach((dataset, i) => {
                             if (i < chart.data.datasets.length) {
                                 chart.data.datasets[i].data = dataset.data;
-                                //chart.data.datasets[i].label = \`\${filterValue} (\${foundDistrict}) - \${dataset.label || 'Data'}\`;
+                                //chart.data.datasets[i].label = \`\${filterValue}  \${dataset.label || 'Data'}\`;
                             }
                         });
                     } else {
