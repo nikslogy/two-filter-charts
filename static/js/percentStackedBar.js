@@ -599,6 +599,104 @@ const PercentStackedBarChartHandler = {
         // Pre-filtered data for each value
         const preFilteredData = ${JSON.stringify(preFilteredData, null, 2)};
 
+        // Function to check if preFilteredData has hierarchical structure
+        function hasHierarchicalStructure() {
+            if (!preFilteredData) return false;
+            
+            // Check if the first level keys contain data objects with labels and datasets properties
+            const firstLevelKeys = Object.keys(preFilteredData);
+            if (firstLevelKeys.length === 0) return false;
+            
+            // Check first key - if it has labels/datasets, it's flat; if it has child objects, it's hierarchical
+            const firstKey = firstLevelKeys[0];
+            const firstValue = preFilteredData[firstKey];
+            
+            // Check if this is a data object (has labels and datasets)
+            if (firstValue && firstValue.labels && firstValue.datasets) {
+                return false; // Flat structure
+            }
+            
+            // Check if this is a district with taluka children
+            if (firstValue && typeof firstValue === 'object') {
+                const childKeys = Object.keys(firstValue);
+                if (childKeys.length > 0) {
+                    const childValue = firstValue[childKeys[0]];
+                    // If child has labels and datasets, this is hierarchical
+                    if (childValue && childValue.labels && childValue.datasets) {
+                        return true; // Hierarchical structure
+                    }
+                }
+            }
+            
+            return false;
+        }
+        
+        // Get URL parameters
+        function getUrlParams() {
+            const params = {};
+            const queryString = window.location.search.substring(1);
+            const pairs = queryString.split('&');
+            
+            for (const pair of pairs) {
+                if (pair) {
+                    const [key, value] = pair.split('=');
+                    params[decodeURIComponent(key)] = decodeURIComponent(value || '');
+                }
+            }
+            return params;
+        }
+
+        // Function to get a specific URL query parameter
+        function getQueryParam(param) {
+            const urlParams = new URLSearchParams(window.location.search);
+            return urlParams.get(param);
+        }
+
+        // Populate secondary dropdown based on selected primary filter
+        function populateSecondaryDropdown(primaryValue) {
+            const secondaryDropdown = document.getElementById('chartFilter');
+            if (!secondaryDropdown) return;
+            
+            // Clear existing options except "All"
+            while (secondaryDropdown.options.length > 1) {
+                secondaryDropdown.remove(1);
+            }
+            
+            // If hierarchical, populate based on primary value
+            if (hasHierarchicalStructure()) {
+                if (!primaryValue || !preFilteredData[primaryValue]) {
+                    // If no primary value selected, show all secondary values from all primary values
+                    const allSecondaryValues = [];
+                    Object.values(preFilteredData).forEach(primaryData => {
+                        if (typeof primaryData === 'object' && !primaryData.labels) {
+                            Object.keys(primaryData).forEach(secondaryValue => {
+                                if (!allSecondaryValues.includes(secondaryValue)) {
+                                    allSecondaryValues.push(secondaryValue);
+                                }
+                            });
+                        }
+                    });
+                    
+                    allSecondaryValues.sort();
+                    allSecondaryValues.forEach(value => {
+                        const option = document.createElement('option');
+                        option.value = value;
+                        option.text = value;
+                        secondaryDropdown.appendChild(option);
+                    });
+                } else {
+                    // Show only secondary values for the selected primary value
+                    const secondaryValues = Object.keys(preFilteredData[primaryValue]).sort();
+                    secondaryValues.forEach(value => {
+                        const option = document.createElement('option');
+                        option.value = value;
+                        option.text = value;
+                        secondaryDropdown.appendChild(option);
+                    });
+                }
+            }
+        }
+
         // Chart configuration
         const ctx = document.getElementById('myChart').getContext('2d');
         const chartData = convertToPercentages(originalChartData);
@@ -710,155 +808,278 @@ const PercentStackedBarChartHandler = {
         });
 
         ${(chartFilterColumn || chartFilterColumn2) ? `
-// Function to filter chart data based on selected value
-function filterChartData() {
-    const filterValue = document.getElementById('chartFilter') ? document.getElementById('chartFilter').value : '';
-    const filterValue2 = document.getElementById('chartFilter2') ? document.getElementById('chartFilter2').value : '';
-    
-    // Update the chart filter data in the JSON
-    const chartFilterData = document.getElementById('chart-filter-data');
-    if (chartFilterData) {
-        const filterDataObj = JSON.parse(chartFilterData.textContent);
-        filterDataObj.selectedFilterValue = filterValue;
-        filterDataObj.selectedFilterValue2 = filterValue2;
-        chartFilterData.textContent = JSON.stringify(filterDataObj);
-    }
-    
-    if (!chart || !chart.data) return;
-    
-    try {
-        // Store current dataset visibility
-        const visibility = [];
-        chart.data.datasets.forEach((dataset, index) => {
-            visibility.push(!chart.getDatasetMeta(index).hidden);
-        });
-        
-        // Handle the "All Values" option for both filters
-        if (!filterValue && !filterValue2) {
-            // Reset to original data
-            for (let i = 0; i < originalChartData.datasets.length; i++) {
-                chart.data.datasets[i]._originalData = [...originalChartData.datasets[i]._originalData];
+        // Function to filter chart data based on selected value
+        function filterChartData() {
+            const filterValue = document.getElementById('chartFilter') ? document.getElementById('chartFilter').value : '';
+            const filterValue2 = document.getElementById('chartFilter2') ? document.getElementById('chartFilter2').value : '';
+            
+            // Get the main filter/district from URL or filter data
+            const mainFilter = getQueryParam('district') || 
+                              (document.getElementById('chart-filter-data') ? 
+                               JSON.parse(document.getElementById('chart-filter-data').textContent).mainFilterValue : '');
+            
+            // Update the chart filter data in the JSON
+            const chartFilterData = document.getElementById('chart-filter-data');
+            if (chartFilterData) {
+                const filterDataObj = JSON.parse(chartFilterData.textContent);
+                filterDataObj.selectedFilterValue = filterValue;
+                filterDataObj.selectedFilterValue2 = filterValue2;
+                chartFilterData.textContent = JSON.stringify(filterDataObj);
             }
-            chart.data.labels = originalChartData.labels;
+            
+            if (!chart || !chart.data) return;
+            
+            try {
+                // Store current dataset visibility
+                const visibility = [];
+                chart.data.datasets.forEach((dataset, index) => {
+                    visibility.push(!chart.getDatasetMeta(index).hidden);
+                });
+                
+                // Prepare to store the raw data before percentage conversion
+                let rawData = {
+                    labels: [],
+                    datasets: []
+                };
+                
+                // Process based on filter combinations
+                
+                // If hierarchical data structure (like District -> Taluka)
+                if (hasHierarchicalStructure()) {
+                    // Case 1: Main filter and filterValue (e.g., District and Taluka)
+                    if (mainFilter && filterValue && 
+                        preFilteredData[mainFilter] && 
+                        preFilteredData[mainFilter][filterValue]) {
+                        // Use specific sub-filter data
+                        rawData = JSON.parse(JSON.stringify(preFilteredData[mainFilter][filterValue]));
+                    }
+                    // Case 2: Main filter but no filterValue (show all for this main filter)
+                    else if (mainFilter && !filterValue && preFilteredData[mainFilter]) {
+                        // Aggregate data for all sub-filters
+                        rawData = aggregateSubFilterData(mainFilter);
+                    }
+                    // Case 3: No main filter but has filterValue (find it in any main filter)
+                    else if (!mainFilter && filterValue) {
+                        let found = false;
+                        // Search in all main filters
+                        for (const main in preFilteredData) {
+                            if (preFilteredData[main][filterValue]) {
+                                rawData = JSON.parse(JSON.stringify(preFilteredData[main][filterValue]));
+                                found = true;
+                                break;
+                            }
+                        }
+                        
+                        if (!found) {
+                            // If not found but we have flat data as fallback
+                            if (preFilteredData[filterValue]) {
+                                rawData = JSON.parse(JSON.stringify(preFilteredData[filterValue]));
+                            } else {
+                                // No data found, show message and use original data
+                                displayFilterMessage(filterValue);
+                                rawData = JSON.parse(JSON.stringify(originalChartData));
+                            }
+                        }
+                    }
+                    // Case 4: No filters, use original data
+                    else {
+                        rawData = JSON.parse(JSON.stringify(originalChartData));
+                    }
+                } 
+                // Flat data structure
+                else {
+                    // If we have a direct filter value match
+                    if (filterValue && preFilteredData && preFilteredData[filterValue]) {
+                        rawData = JSON.parse(JSON.stringify(preFilteredData[filterValue]));
+                    } 
+                    // Secondary filter if exists
+                    else if (filterValue2 && preFilteredData && preFilteredData.filter2 && 
+                             preFilteredData.filter2[filterValue2]) {
+                        rawData = JSON.parse(JSON.stringify(preFilteredData.filter2[filterValue2]));
+                    }
+                    // No filters or no match, use original
+                    else {
+                        if (filterValue && !preFilteredData[filterValue]) {
+                            displayFilterMessage(filterValue);
+                        }
+                        rawData = JSON.parse(JSON.stringify(originalChartData));
+                    }
+                }
+                
+                // Ensure raw data has _originalData for percentage calculation
+                rawData.datasets.forEach((dataset, i) => {
+                    dataset._originalData = [...dataset.data];
+                });
+                
+                // Update chart with new data and labels
+                chart.data.labels = rawData.labels;
+                
+                // Update datasets
+                for (let i = 0; i < rawData.datasets.length && i < chart.data.datasets.length; i++) {
+                    chart.data.datasets[i]._originalData = rawData.datasets[i]._originalData || rawData.datasets[i].data;
+                }
+                
+                // Convert to percentages
+                const percentData = convertToPercentages(rawData);
+                
+                // Update chart data with percentages
+                for (let i = 0; i < percentData.datasets.length && i < chart.data.datasets.length; i++) {
+                    chart.data.datasets[i].data = percentData.datasets[i].data;
+                }
+                
+                // Restore dataset visibility
+                chart.data.datasets.forEach((dataset, index) => {
+                    if (index < visibility.length) {
+                        chart.getDatasetMeta(index).hidden = !visibility[index];
+                    }
+                });
+                
+                // Get the visible datasets for percentage recalculation
+                const visibleDatasets = [];
+                chart.data.datasets.forEach((dataset, i) => {
+                    if (!chart.getDatasetMeta(i).hidden) {
+                        visibleDatasets.push(i);
+                    }
+                });
+                
+                // Recalculate percentages based on visible datasets
+                if (visibleDatasets.length > 0) {
+                    recalculatePercentages(chart, visibleDatasets);
+                }
+                
+                // Update the chart
+                chart.update();
+            } catch (error) {
+                console.error("Error filtering chart:", error);
+                displayFilterMessage(filterValue || filterValue2, true);
+                
+                // Reset to original data on error
+                chart.data.labels = originalChartData.labels;
+                
+                // Reset original data
+                chart.data.datasets.forEach((dataset, i) => {
+                    if (i < originalChartData.datasets.length) {
+                        dataset._originalData = [...originalChartData.datasets[i]._originalData];
+                    }
+                });
+                
+                // Recalculate percentages
+                const percentData = convertToPercentages(chart.data);
+                chart.data.datasets.forEach((dataset, i) => {
+                    if (i < percentData.datasets.length) {
+                        dataset.data = percentData.datasets[i].data;
+                    }
+                });
+                
+                chart.update();
+            }
+        }
 
-            // Recalculate percentages
-            const percentData = convertToPercentages(chart.data);
-            chart.data.datasets.forEach((dataset, i) => {
-                dataset.data = percentData.datasets[i].data;
+        // Function to aggregate data for all sub-filters in a main filter
+        function aggregateSubFilterData(mainFilter) {
+            if (!preFilteredData[mainFilter]) return originalChartData;
+            
+            const subFilters = Object.keys(preFilteredData[mainFilter]);
+            if (subFilters.length === 0) return originalChartData;
+            
+            // Use the first sub-filter to get structure
+            const firstSubFilter = subFilters[0];
+            const firstData = preFilteredData[mainFilter][firstSubFilter];
+            
+            if (!firstData || !firstData.labels || !firstData.datasets) return originalChartData;
+            
+            // Create new data structure with same labels and dataset structure
+            const aggregated = {
+                labels: [...firstData.labels],
+                datasets: firstData.datasets.map(ds => ({
+                    ...ds,
+                    data: new Array(ds.data.length).fill(0)
+                }))
+            };
+            
+            // Aggregate data from all sub-filters
+            subFilters.forEach(sub => {
+                const subData = preFilteredData[mainFilter][sub];
+                if (subData && subData.datasets) {
+                    subData.datasets.forEach((ds, i) => {
+                        if (i < aggregated.datasets.length) {
+                            ds.data.forEach((val, j) => {
+                                if (val !== null && val !== undefined && !isNaN(val)) {
+                                    aggregated.datasets[i].data[j] += val;
+                                }
+                            });
+                        }
+                    });
+                }
             });
-        // Use pre-filtered data if available
-        } else if (filterValue && preFilteredData && preFilteredData[filterValue]) {
-            // Use pre-filtered data for filter 1
-            const filteredData = preFilteredData[filterValue];
             
-            // Check if we have valid data
-            if (filteredData && filteredData.labels && filteredData.datasets) {
-                // Update labels
-                chart.data.labels = filteredData.labels;
-                
-                // Update each dataset's original data
-                filteredData.datasets.forEach((dataset, i) => {
-                    if (i < chart.data.datasets.length) {
-                        chart.data.datasets[i]._originalData = dataset.data;
-                    }
-                });
-                
-                // Recalculate percentages
-                const percentData = convertToPercentages(chart.data);
-                chart.data.datasets.forEach((dataset, i) => {
-                    dataset.data = percentData.datasets[i].data;
-                });
-            }
-        } else if (filterValue2 && preFilteredData && preFilteredData.filter2 && preFilteredData.filter2[filterValue2]) {
-            // Use pre-filtered data for filter 2
-            const filteredData = preFilteredData.filter2[filterValue2];
-            
-            // Check if we have valid data
-            if (filteredData && filteredData.labels && filteredData.datasets) {
-                // Update labels
-                chart.data.labels = filteredData.labels;
-                
-                // Update each dataset's original data
-                filteredData.datasets.forEach((dataset, i) => {
-                    if (i < chart.data.datasets.length) {
-                        chart.data.datasets[i]._originalData = dataset.data;
-                    }
-                });
-                
-                // Recalculate percentages
-                const percentData = convertToPercentages(chart.data);
-                chart.data.datasets.forEach((dataset, i) => {
-                    dataset.data = percentData.datasets[i].data;
-                });
-            }
-        } else {
-            // Fallback to client-side filtering if no pre-filtered data
-            console.log("No pre-filtered data available, using fallback filter");
-            displayFilterMessage(filterValue || filterValue2);
+            return aggregated;
         }
-        
-        // Restore dataset visibility
-        chart.data.datasets.forEach((dataset, index) => {
-            if (chart.getDatasetMeta(index).hidden === undefined) {
-                chart.getDatasetMeta(index).hidden = !visibility[index];
-            }
-        });
-        
-        // Update the chart
-        chart.update();
-    } catch (error) {
-        console.error("Error filtering chart:", error);
-        displayFilterMessage(filterValue || filterValue2, true);
-        
-        // Reset to original data on error
-        for (let i = 0; i < originalChartData.datasets.length; i++) {
-            chart.data.datasets[i]._originalData = [...originalChartData.datasets[i]._originalData];
-        }
-        chart.data.labels = originalChartData.labels;
-        
-        // Recalculate percentages
-        const percentData = convertToPercentages(chart.data);
-        chart.data.datasets.forEach((dataset, i) => {
-            dataset.data = percentData.datasets[i].data;
-        });
-        
-        chart.update();
-    }
-}
 
-// Helper function to display filter messages
-function displayFilterMessage(filterValue, isError = false) {
-    const messageDiv = document.createElement('div');
-    
-    if (isError) {
-        messageDiv.style.cssText = 'padding: 10px; margin: 10px 0; background-color: #f8d7da; color: #721c24; border-radius: 4px; border-left: 4px solid #f5c6cb;';
-        messageDiv.innerHTML = '<strong>Error:</strong> Could not filter data for "' + filterValue + 
-            '". Showing all values.';
-    } else {
-        messageDiv.style.cssText = 'padding: 10px; margin: 10px 0; background-color: #cfe8ff; color: #084298; border-radius: 4px; border-left: 4px solid #084298;';
-        messageDiv.innerHTML = '<strong>Note:</strong> No filter data available for "' + filterValue + 
-            '". Showing all values.';
-    }
-    
-    messageDiv.className = 'filter-message';
-    
-    const chartContainer = document.querySelector('.chart-container');
-    const existingMessage = chartContainer.querySelector('.filter-message');
-    if (existingMessage) {
-        chartContainer.removeChild(existingMessage);
-    }
-    
-    const canvasContainer = document.querySelector('.chart-canvas-container');
-    chartContainer.insertBefore(messageDiv, canvasContainer);
-    
-    // Auto-remove after 4 seconds
-    setTimeout(() => {
-        if (messageDiv.parentNode) {
-            messageDiv.parentNode.removeChild(messageDiv);
+        // Recalculate percentages when hiding/showing datasets
+        function recalculatePercentages(chart, visibleDatasets) {
+            // For each data point, recalculate percentages based on visible datasets
+            for (let i = 0; i < chart.data.labels.length; i++) {
+                let total = 0;
+                
+                // Calculate total of visible datasets
+                visibleDatasets.forEach(datasetIndex => {
+                    const originalValue = chart.data.datasets[datasetIndex]._originalData[i];
+                    if (originalValue !== null && originalValue !== undefined && !isNaN(originalValue)) {
+                        total += Math.abs(parseFloat(originalValue));
+                    }
+                });
+                
+                // Update percentages for all datasets
+                chart.data.datasets.forEach((dataset, datasetIndex) => {
+                    const originalValue = dataset._originalData ? dataset._originalData[i] : 0;
+                    
+                    if (visibleDatasets.includes(datasetIndex) && total > 0) {
+                        if (originalValue !== null && originalValue !== undefined && !isNaN(originalValue)) {
+                            dataset.data[i] = (Math.abs(parseFloat(originalValue)) / total) * 100;
+                        } else {
+                            dataset.data[i] = 0;
+                        }
+                    } else {
+                        dataset.data[i] = 0;
+                    }
+                });
+            }
         }
-    }, 4000);
-}
-` : ''}
+
+        // Helper function to display filter messages
+        function displayFilterMessage(filterValue, isError = false) {
+            const messageDiv = document.createElement('div');
+            
+            if (isError) {
+                messageDiv.style.cssText = 'padding: 10px; margin: 10px 0; background-color: #f8d7da; color: #721c24; border-radius: 4px; border-left: 4px solid #f5c6cb;';
+                messageDiv.innerHTML = '<strong>Error:</strong> Could not filter data for "' + filterValue + 
+                    '". Showing all values.';
+            } else {
+                messageDiv.style.cssText = 'padding: 10px; margin: 10px 0; background-color: #cfe8ff; color: #084298; border-radius: 4px; border-left: 4px solid #084298;';
+                messageDiv.innerHTML = '<strong>Note:</strong> No filter data available for "' + filterValue + 
+                    '". Showing all values.';
+            }
+            
+            messageDiv.className = 'filter-message';
+            
+            const chartContainer = document.querySelector('.chart-container');
+            const existingMessage = chartContainer.querySelector('.filter-message');
+            if (existingMessage) {
+                chartContainer.removeChild(existingMessage);
+            }
+            
+            const canvasContainer = document.querySelector('.chart-canvas-container');
+            chartContainer.insertBefore(messageDiv, canvasContainer);
+            
+            // Auto-remove after 4 seconds
+            setTimeout(() => {
+                if (messageDiv.parentNode) {
+                    messageDiv.parentNode.removeChild(messageDiv);
+                }
+            }, 4000);
+        }
+        ` : ''}
 
         // Add download functionality
         document.getElementById('downloadChartBtn').addEventListener('click', function() {
@@ -870,8 +1091,32 @@ function displayFilterMessage(filterValue, isError = false) {
             link.click();
         });
         
-        // Apply the initial filter value if one is selected
-        ${selectedFilterValue || selectedFilterValue2 ? 'setTimeout(() => filterChartData(), 100);' : ''}
+        // Initialize the page based on URL parameters
+        document.addEventListener('DOMContentLoaded', function() {
+            // Check for main filter (like district) in URL parameters
+            const mainFilter = getQueryParam('district') || '';
+            const subFilter = getQueryParam('taluka') || getQueryParam('filter') || '';
+            
+            // If hierarchical, populate secondary dropdown
+            if (hasHierarchicalStructure()) {
+                populateSecondaryDropdown(mainFilter);
+            
+                // Set sub-filter dropdown value if provided in URL
+                if (subFilter && document.getElementById('chartFilter')) {
+                    const subFilterSelect = document.getElementById('chartFilter');
+                    // Find and select the option with matching value
+                    for (let i = 0; i < subFilterSelect.options.length; i++) {
+                        if (subFilterSelect.options[i].value === subFilter) {
+                            subFilterSelect.selectedIndex = i;
+                            break;
+                        }
+                    }
+                }
+            }
+            
+            // Apply filters based on URL parameters
+            filterChartData();
+        });
     </script>
 </body>
 </html>`;
