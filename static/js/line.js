@@ -389,7 +389,7 @@ const LineChartHandler = {
                 
                 let formattedRemaining = '';
                 if (remaining) {
-                    formattedRemaining = remaining.replace(/\B(?=(\d{2})+(?!\d))/g, ',');
+                    formattedRemaining = remaining.replace(/\\B(?=(\\d{2})+(?!\\d))/g, ',');
                 }
                 
                 formattedNumber = formattedRemaining ? formattedRemaining + ',' + lastThree : lastThree;
@@ -938,7 +938,7 @@ function formatIndianNumber(num) {
         // Now we format the remaining digits with commas after every 2 digits
         let formattedRemaining = '';
         if (remaining) {
-            formattedRemaining = remaining.replace(/\B(?=(\d{2})+(?!\d))/g, ',');
+            formattedRemaining = remaining.replace(/\\B(?=(\\d{2})+(?!\\d))/g, ',');
         }
         
         // Combine the parts
