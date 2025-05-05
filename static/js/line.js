@@ -53,9 +53,6 @@ const LineChartHandler = {
             );
         });
         
-
-
-        
         // Set chart configuration for line charts
         const config = {
             type: 'line',
@@ -90,7 +87,6 @@ const LineChartHandler = {
                             precision: 0, 
                             maxTicksLimit: 7,  
                             color: '#333',
-
                         }
                     }
                 },
@@ -105,6 +101,9 @@ const LineChartHandler = {
         try {
             const newChart = new Chart(ctx, config);
             console.log("Line chart created successfully");
+            
+            // Store original dataset labels for later use in filtering
+            newChart.originalLabels = chartData.datasets.map(dataset => dataset.label);
             
             // Create custom legend
             this.createCustomLegend(chartData, newChart, chartCanvas);
@@ -390,7 +389,7 @@ const LineChartHandler = {
                 
                 let formattedRemaining = '';
                 if (remaining) {
-                    formattedRemaining = remaining.replace(/\\B(?=(\\d{2})+(?!\\d))/g, ',');
+                    formattedRemaining = remaining.replace(/\B(?=(\d{2})+(?!\d))/g, ',');
                 }
                 
                 formattedNumber = formattedRemaining ? formattedRemaining + ',' + lastThree : lastThree;
@@ -405,6 +404,9 @@ const LineChartHandler = {
 
         // Store original chart data for filtering
         const originalChartData = ${JSON.stringify(chartConfig.data, null, 2)};
+        
+        // Store original dataset labels
+        const originalDatasetLabels = originalChartData.datasets.map(dataset => dataset.label);
         
         // Pre-filtered data for each district and taluka
         const preFilteredData = ${JSON.stringify(preFilteredData, null, 2)};
@@ -426,38 +428,51 @@ const LineChartHandler = {
             const firstTaluka = talukas[0];
             const labels = [...preFilteredData[district][firstTaluka].labels];
             
-            // Initialize aggregated data array with zeros
-            let aggregatedData = new Array(labels.length).fill(0);
+            // Initialize aggregated datasets array
+            let aggregatedDatasets = [];
             
-            // Sum data from all talukas for each year
+            // Get the number of datasets from the first taluka's data
+            const numDatasets = preFilteredData[district][firstTaluka].datasets.length;
+            
+            // Initialize aggregated datasets with empty arrays
+            for (let i = 0; i < numDatasets; i++) {
+                const firstTalukaDataset = preFilteredData[district][firstTaluka].datasets[i];
+                aggregatedDatasets.push({
+                    backgroundColor: firstTalukaDataset.backgroundColor,
+                    borderColor: firstTalukaDataset.borderColor,
+                    borderWidth: firstTalukaDataset.borderWidth || 1,
+                    data: new Array(labels.length).fill(0),
+                    fill: firstTalukaDataset.fill || false,
+                    label: originalDatasetLabels[i] || firstTalukaDataset.label,  // Preserve original label
+                    pointHoverRadius: firstTalukaDataset.pointHoverRadius || 3,
+                    pointRadius: firstTalukaDataset.pointRadius || 0,
+                    spanGaps: firstTalukaDataset.spanGaps || false,
+                    tension: firstTalukaDataset.tension || 0,
+                    pointBackgroundColor: firstTalukaDataset.pointBackgroundColor || firstTalukaDataset.borderColor
+                });
+            }
+            
+            // Sum data from all talukas for each year and each dataset
             talukas.forEach(taluka => {
                 const talukaData = preFilteredData[district][taluka];
-                if (talukaData && talukaData.datasets && talukaData.datasets[0] && talukaData.datasets[0].data) {
-                    talukaData.datasets[0].data.forEach((value, index) => {
-                        // Handle null/undefined values as 0 for aggregation
-                        if (value !== null && value !== undefined && !isNaN(value)) {
-                            aggregatedData[index] += value;
+                if (talukaData && talukaData.datasets) {
+                    talukaData.datasets.forEach((dataset, datasetIndex) => {
+                        if (dataset && dataset.data && datasetIndex < aggregatedDatasets.length) {
+                            dataset.data.forEach((value, index) => {
+                                // Handle null/undefined values as 0 for aggregation
+                                if (value !== null && value !== undefined && !isNaN(value)) {
+                                    aggregatedDatasets[datasetIndex].data[index] += value;
+                                }
+                            });
                         }
                     });
                 }
             });
             
-            // Create a dataset object with the aggregated data
+            // Create a final data object with the aggregated datasets
             return {
                 labels: labels,
-                datasets: [{
-                    backgroundColor: "#1a4570",
-                    borderColor: "#1a4570",
-                    borderWidth: 1,
-                    data: aggregatedData,
-                    fill: false,
-                    label: \`Total \`,
-                    pointHoverRadius: 3,
-                    pointRadius: 0,
-                    spanGaps: false,
-                    tension: 0,
-                    pointBackgroundColor: "#1a4570"
-                }]
+                datasets: aggregatedDatasets
             };
         }
         
@@ -621,6 +636,9 @@ const LineChartHandler = {
             }
         });
 
+        // Store original dataset labels for reference during filtering
+        chart.originalLabels = originalDatasetLabels;
+
         ${(chartFilterColumn || chartFilterColumn2) ? `
         // Function to check if preFilteredData has hierarchical structure
         function hasHierarchicalStructure() {
@@ -692,7 +710,8 @@ const LineChartHandler = {
                             districtData.datasets.forEach((dataset, i) => {
                                 if (i < chart.data.datasets.length) {
                                     chart.data.datasets[i].data = dataset.data;
-                                    chart.data.datasets[i].label = dataset.label;
+                                    // Preserve original label
+                                    chart.data.datasets[i].label = chart.originalLabels[i] || originalDatasetLabels[i] || dataset.label;
                                 }
                             });
                         } else {
@@ -700,7 +719,7 @@ const LineChartHandler = {
                             chart.data.labels = originalChartData.labels;
                             chart.data.datasets.forEach((dataset, i) => {
                                 dataset.data = originalChartData.datasets[i].data;
-                                //dataset.label = originalChartData.datasets[i].label;
+                                dataset.label = originalDatasetLabels[i] || dataset.label;
                             });
                         }
                     } else {
@@ -708,7 +727,7 @@ const LineChartHandler = {
                         chart.data.labels = originalChartData.labels;
                         chart.data.datasets.forEach((dataset, i) => {
                             dataset.data = originalChartData.datasets[i].data;
-                            dataset.label = originalChartData.datasets[i].label;
+                            dataset.label = originalDatasetLabels[i] || dataset.label;
                         });
                     }
                 } 
@@ -721,7 +740,8 @@ const LineChartHandler = {
                         filteredData.datasets.forEach((dataset, i) => {
                             if (i < chart.data.datasets.length) {
                                 chart.data.datasets[i].data = dataset.data;
-                                //chart.data.datasets[i].label = \`\${filterValue} - \${dataset.label}\`;
+                                // Preserve original label or use the filter value in the label if needed
+                                chart.data.datasets[i].label = originalDatasetLabels[i] || dataset.label;
                             }
                         });
                     }
@@ -746,7 +766,8 @@ const LineChartHandler = {
                             filteredData.datasets.forEach((dataset, i) => {
                                 if (i < chart.data.datasets.length) {
                                     chart.data.datasets[i].data = dataset.data;
-                                    // chart.data.datasets[i].label = \`\${filterValue} (\${foundDistrict}) - \${dataset.label}\`;
+                                    // Preserve original label
+                                    chart.data.datasets[i].label = originalDatasetLabels[i] || dataset.label;
                                 }
                             });
                         } else {
@@ -757,7 +778,7 @@ const LineChartHandler = {
                                 flatData.datasets.forEach((dataset, i) => {
                                     if (i < chart.data.datasets.length) {
                                         chart.data.datasets[i].data = dataset.data;
-                                        chart.data.datasets[i].label = dataset.label;
+                                        chart.data.datasets[i].label = originalDatasetLabels[i] || dataset.label;
                                     }
                                 });
                             } else {
@@ -775,7 +796,7 @@ const LineChartHandler = {
                                 filteredData.datasets.forEach((dataset, i) => {
                                     if (i < chart.data.datasets.length) {
                                         chart.data.datasets[i].data = dataset.data;
-                                        chart.data.datasets[i].label = dataset.label;
+                                        chart.data.datasets[i].label = originalDatasetLabels[i] || dataset.label;
                                     }
                                 });
                             }
@@ -805,7 +826,7 @@ const LineChartHandler = {
                 chart.data.labels = originalChartData.labels;
                 chart.data.datasets.forEach((dataset, i) => {
                     dataset.data = originalChartData.datasets[i].data;
-                    dataset.label = originalChartData.datasets[i].label;
+                    dataset.label = originalDatasetLabels[i] || dataset.label;
                 });
                 chart.update();
             }
@@ -850,7 +871,7 @@ const LineChartHandler = {
             const canvas = document.getElementById('myChart');
             const image = canvas.toDataURL('image/png');
             const link = document.createElement('a');
-            link.download = '${chartTitle.replace(/\\s+/g, '_')}.png';
+            link.download = '${chartTitle.replace(/\s+/g, '_')}.png';
             link.href = image;
             link.click();
         });
@@ -917,7 +938,7 @@ function formatIndianNumber(num) {
         // Now we format the remaining digits with commas after every 2 digits
         let formattedRemaining = '';
         if (remaining) {
-            formattedRemaining = remaining.replace(/\\B(?=(\\d{2})+(?!\\d))/g, ',');
+            formattedRemaining = remaining.replace(/\B(?=(\d{2})+(?!\d))/g, ',');
         }
         
         // Combine the parts
