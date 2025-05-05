@@ -424,43 +424,58 @@ const BarChartHandler = {
             return urlParams.get(param);
         }
         
-        // Function to aggregate data for all talukas in a district
+        // Function to aggregate data for all talukas in a district while preserving original dataset labels
         function getDistrictAggregateData(district) {
             if (!preFilteredData[district]) return null;
             
             const talukas = Object.keys(preFilteredData[district]);
             if (talukas.length === 0) return null;
             
-            // Use the first taluka to get the labels (assuming all talukas in a district have the same labels)
+            // Use the first taluka to get the labels and structure
             const firstTaluka = talukas[0];
             const labels = [...preFilteredData[district][firstTaluka].labels];
+            const datasetCount = preFilteredData[district][firstTaluka].datasets.length;
             
-            // Initialize aggregated data array with zeros
-            let aggregatedData = new Array(labels.length).fill(0);
+            // Initialize aggregated datasets with same structure as original
+            const aggregatedDatasets = [];
             
-            // Sum data from all talukas for each category
+            for (let datasetIndex = 0; datasetIndex < datasetCount; datasetIndex++) {
+                // Create a new dataset with same properties as original
+                const originalDataset = originalChartData.datasets[datasetIndex] || 
+                                       preFilteredData[district][firstTaluka].datasets[datasetIndex];
+                
+                const newDataset = {
+                    ...originalDataset,
+                    data: new Array(labels.length).fill(0)
+                };
+                
+                // Ensure we're keeping the original label
+                newDataset.label = originalDataset.label;
+                
+                aggregatedDatasets.push(newDataset);
+            }
+            
+            // Sum data from all talukas for each category and dataset
             talukas.forEach(taluka => {
                 const talukaData = preFilteredData[district][taluka];
-                if (talukaData && talukaData.datasets && talukaData.datasets[0] && talukaData.datasets[0].data) {
-                    talukaData.datasets[0].data.forEach((value, index) => {
-                        // Handle null/undefined values as 0 for aggregation
-                        if (value !== null && value !== undefined && !isNaN(value)) {
-                            aggregatedData[index] += value;
+                if (talukaData && talukaData.datasets) {
+                    talukaData.datasets.forEach((dataset, datasetIndex) => {
+                        if (datasetIndex < aggregatedDatasets.length && dataset.data) {
+                            dataset.data.forEach((value, valueIndex) => {
+                                // Handle null/undefined values as 0 for aggregation
+                                if (value !== null && value !== undefined && !isNaN(value)) {
+                                    aggregatedDatasets[datasetIndex].data[valueIndex] += value;
+                                }
+                            });
                         }
                     });
                 }
             });
             
-            // Create a dataset object with the aggregated data
+            // Return the aggregated data
             return {
                 labels: labels,
-                datasets: [{
-                    backgroundColor: "#1a4570",
-                    borderColor: "#1a4570",
-                    borderWidth: 1,
-                    data: aggregatedData,
-                    label: "Total",
-                }]
+                datasets: aggregatedDatasets
             };
         }
         
@@ -515,12 +530,6 @@ const BarChartHandler = {
                     talukaDropdown.add(option);
                 });
                 
-                // Update the chart title to include district name
-                const chartTitle = document.querySelector('.chart-title');
-                // if (chartTitle) {
-                //     chartTitle.textContent = \`\${district} District - Bar Chart\`;
-                // }
-                
                 // Update filter data JSON
                 const chartFilterData = document.getElementById('chart-filter-data');
                 if (chartFilterData) {
@@ -556,13 +565,13 @@ const BarChartHandler = {
                         display: false
                     },
                     tooltip: {
-                        backgroundColor: 'white', // Yellow tooltip background
+                        backgroundColor: 'white', // White tooltip background
                         titleColor: 'black',
                         bodyColor: 'black',
                         animation: {
-        duration: 50, // milliseconds (default is 400)
-        easing: 'easeOutQuart' // easing function
-      },
+                            duration: 50, // milliseconds (default is 400)
+                            easing: 'easeOutQuart' // easing function
+                        },
                         callbacks: {
                             label: function(context) {
                                 let label = context.dataset.label || '';
@@ -698,7 +707,10 @@ const BarChartHandler = {
                             preFilteredData[district].datasets.forEach((dataset, i) => {
                                 if (i < chart.data.datasets.length) {
                                     chart.data.datasets[i].data = dataset.data;
-                                    //chart.data.datasets[i].label = dataset.label || chart.data.datasets[i].label;
+                                    // Preserve original label
+                                    if (dataset.label) {
+                                        chart.data.datasets[i].label = dataset.label;
+                                    }
                                 }
                             });
                         } else {
@@ -709,7 +721,10 @@ const BarChartHandler = {
                                 districtData.datasets.forEach((dataset, i) => {
                                     if (i < chart.data.datasets.length) {
                                         chart.data.datasets[i].data = dataset.data;
-                                        chart.data.datasets[i].label = dataset.label;
+                                        // Preserve original labels from the datasets
+                                        if (originalChartData.datasets[i] && originalChartData.datasets[i].label) {
+                                            chart.data.datasets[i].label = originalChartData.datasets[i].label;
+                                        }
                                     }
                                 });
                             } else {
@@ -740,11 +755,16 @@ const BarChartHandler = {
                         // Update labels and datasets
                         chart.data.labels = filteredData.labels;
                         
-                        // Update each dataset's data while preserving other properties
+                        // Update each dataset's data while preserving other properties including label
                         filteredData.datasets.forEach((dataset, i) => {
                             if (i < chart.data.datasets.length) {
                                 chart.data.datasets[i].data = dataset.data;
-                                //chart.data.datasets[i].label = \`\${filterValue} - \${dataset.label || 'Data'}\`;
+                                // Preserve original label or use dataset label if provided
+                                if (dataset.label) {
+                                    chart.data.datasets[i].label = dataset.label;
+                                } else if (originalChartData.datasets[i] && originalChartData.datasets[i].label) {
+                                    chart.data.datasets[i].label = originalChartData.datasets[i].label;
+                                }
                             }
                         });
                     }
@@ -770,7 +790,12 @@ const BarChartHandler = {
                         filteredData.datasets.forEach((dataset, i) => {
                             if (i < chart.data.datasets.length) {
                                 chart.data.datasets[i].data = dataset.data;
-                                //chart.data.datasets[i].label = \`\${filterValue}  \${dataset.label || 'Data'}\`;
+                                // Preserve original label or use dataset label if provided
+                                if (dataset.label) {
+                                    chart.data.datasets[i].label = dataset.label;
+                                } else if (originalChartData.datasets[i] && originalChartData.datasets[i].label) {
+                                    chart.data.datasets[i].label = originalChartData.datasets[i].label;
+                                }
                             }
                         });
                     } else {
@@ -781,7 +806,8 @@ const BarChartHandler = {
                             flatData.datasets.forEach((dataset, i) => {
                                 if (i < chart.data.datasets.length) {
                                     chart.data.datasets[i].data = dataset.data;
-                                    chart.data.datasets[i].label = dataset.label || chart.data.datasets[i].label;
+                                    // Use appropriate label
+                                    chart.data.datasets[i].label = dataset.label || originalChartData.datasets[i].label;
                                 }
                             });
                         } else {
@@ -804,7 +830,8 @@ const BarChartHandler = {
                         filteredData.datasets.forEach((dataset, i) => {
                             if (i < chart.data.datasets.length) {
                                 chart.data.datasets[i].data = dataset.data;
-                                //chart.data.datasets[i].label = dataset.label || chart.data.datasets[i].label;
+                                // Use appropriate label
+                                chart.data.datasets[i].label = dataset.label || originalChartData.datasets[i].label;
                             }
                         });
                     }
@@ -823,7 +850,7 @@ const BarChartHandler = {
                         filteredData.datasets.forEach((dataset, i) => {
                             if (i < chart.data.datasets.length) {
                                 chart.data.datasets[i].data = dataset.data;
-                                chart.data.datasets[i].label = dataset.label || chart.data.datasets[i].label;
+                                chart.data.datasets[i].label = dataset.label || originalChartData.datasets[i].label;
                             }
                         });
                     }
@@ -842,7 +869,7 @@ const BarChartHandler = {
                         filteredData.datasets.forEach((dataset, i) => {
                             if (i < chart.data.datasets.length) {
                                 chart.data.datasets[i].data = dataset.data;
-                                chart.data.datasets[i].label = dataset.label || chart.data.datasets[i].label;
+                                chart.data.datasets[i].label = dataset.label || originalChartData.datasets[i].label;
                             }
                         });
                     }
@@ -862,8 +889,8 @@ const BarChartHandler = {
                     if (matchingIndices.length > 0) {
                         // Filter data to only show matching categories
                         chart.data.labels = matchingIndices.map(i => originalChartData.labels[i]);
-                        chart.data.datasets.forEach((dataset, i) => {
-                            dataset.data = matchingIndices.map(i => originalChartData.datasets[i].data[i]);
+                        chart.data.datasets.forEach((dataset, dsIndex) => {
+                            dataset.data = matchingIndices.map(i => originalChartData.datasets[dsIndex].data[i]);
                         });
                     } else {
                         // No exact matches found, show message
@@ -929,14 +956,25 @@ const BarChartHandler = {
         }
         ` : ''}
 
-        // Add download functionality
+        // Add download functionality - ensure chart is fully rendered before download
         document.getElementById('downloadChartBtn').addEventListener('click', function() {
-            const canvas = document.getElementById('myChart');
-            const image = canvas.toDataURL('image/png');
-            const link = document.createElement('a');
-            link.download = '${chartTitle.replace(/\\s+/g, '_')}.png';
-            link.href = image;
-            link.click();
+            // Make sure chart is fully rendered
+            setTimeout(function() {
+                try {
+                    const canvas = document.getElementById('myChart');
+                    const image = canvas.toDataURL('image/png', 1.0); // Use highest quality
+                    const link = document.createElement('a');
+                    link.download = '${chartTitle.replace(/\s+/g, '_')}.png';
+                    link.href = image;
+                    // Use direct click method for more reliable download
+                    document.body.appendChild(link);
+                    link.click();
+                    document.body.removeChild(link);
+                } catch (error) {
+                    console.error("Error downloading chart:", error);
+                    alert("Could not download chart. Please try again.");
+                }
+            }, 200); // Small delay to ensure rendering is complete
         });
         
         // Initialize the page based on URL parameters
@@ -962,8 +1000,11 @@ const BarChartHandler = {
                 }
             }
             
-            // Apply the filter based on URL parameters
-            filterChartData();
+            // Ensure chart is fully initialized before any filtering
+            setTimeout(function() {
+                // Apply the filter based on URL parameters
+                filterChartData();
+            }, 100);
         });
     </script>
 </body>
