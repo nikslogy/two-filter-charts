@@ -193,7 +193,7 @@ const LineChartHandler = {
     },
     
     // Generate HTML for exporting line chart
-    generateLineChartHTML: function(chartConfig, chartTitle, description, additionalInfo, chartFilterColumn, chartFilterOptions, selectedFilterValue, preFilteredData, chartFilterColumn2, chartFilterOptions2, selectedFilterValue2, mainFilterColumn, mainFilterValue) {
+    generateLineChartHTML: function(chartConfig, chartTitle, description, additionalInfo, chartFilterColumn, chartFilterOptions, selectedFilterValue, preFilteredData, chartFilterColumn2, chartFilterOptions2, selectedFilterValue2, mainFilterColumn, mainFilterValue, columnMetadata) {
         return `
 <!DOCTYPE html>
 <html>
@@ -319,7 +319,8 @@ const LineChartHandler = {
             selectedFilterValue: selectedFilterValue,
             filterColumn2: chartFilterColumn2,
             selectedFilterValue2: selectedFilterValue2,
-            chartType: 'line'
+            chartType: 'line',
+            columnMetadata: columnMetadata || {}
         })}
     </script>
     
@@ -335,7 +336,13 @@ const LineChartHandler = {
                 <label for="chartFilter">${chartFilterColumn}:</label>
                 <select id="chartFilter" onchange="filterChartData()">
                     <option value="">All</option>
-                    ${chartFilterOptions.map(value => value ? `<option value="${value}" ${value === selectedFilterValue ? 'selected' : ''}>${value}</option>` : '').join('')}
+                    ${chartFilterOptions.filter(value => 
+                        value && 
+                        value !== 'datasets' && 
+                        value !== 'labels' && 
+                        value.indexOf('+') === -1 && 
+                        !value.match(/^\d+$/)
+                    ).map(value => value ? `<option value="${value}" ${value === selectedFilterValue ? 'selected' : ''}>${value}</option>` : '').join('')}
                 </select>
             </div>
             ` : ''}
@@ -344,7 +351,14 @@ const LineChartHandler = {
                 <label for="chartFilter2">${chartFilterColumn2}:</label>
                 <select id="chartFilter2" onchange="filterChartData()">
                     <option value="">All</option>
-                    ${chartFilterOptions2 && chartFilterOptions2.length > 0 ? chartFilterOptions2.map(value => value ? `<option value="${value}" ${value === selectedFilterValue2 ? 'selected' : ''}>${value}</option>` : '').join('') : ''}
+                    ${chartFilterOptions2 && chartFilterOptions2.length > 0 ? 
+                      chartFilterOptions2.filter(value => 
+                        value && 
+                        value !== 'datasets' && 
+                        value !== 'labels' && 
+                        value.indexOf('+') === -1 && 
+                        !value.match(/^\d+$/)
+                      ).map(value => value ? `<option value="${value}" ${value === selectedFilterValue2 ? 'selected' : ''}>${value}</option>` : '').join('') : ''}
                 </select>
             </div>
             ` : ''}
@@ -408,8 +422,11 @@ const LineChartHandler = {
         // Store original dataset labels
         const originalDatasetLabels = originalChartData.datasets.map(dataset => dataset.label);
         
-        // Pre-filtered data for each district and taluka
+        // Pre-filtered data for each filter value
         const preFilteredData = ${JSON.stringify(preFilteredData, null, 2)};
+        
+        // Column metadata to identify filter types
+        const columnMetadata = ${JSON.stringify(columnMetadata || {}, null, 2)};
         
         // Function to get URL query parameters
         function getQueryParam(param) {
@@ -424,31 +441,43 @@ const LineChartHandler = {
             const talukas = Object.keys(preFilteredData[district]);
             if (talukas.length === 0) return null;
             
-            // Use the first taluka to get the labels (assuming all talukas in a district have the same years)
-            const firstTaluka = talukas[0];
-            const labels = [...preFilteredData[district][firstTaluka].labels];
+            // Find a valid taluka that has labels and datasets
+            let validTaluka = null;
+            for (const taluka of talukas) {
+                if (preFilteredData[district][taluka] && 
+                    preFilteredData[district][taluka].labels && 
+                    preFilteredData[district][taluka].datasets) {
+                    validTaluka = taluka;
+                    break;
+                }
+            }
+            
+            if (!validTaluka) return null; // No valid taluka found
+            
+            // Use the valid taluka to get the labels
+            const labels = [...preFilteredData[district][validTaluka].labels];
             
             // Initialize aggregated datasets array
             let aggregatedDatasets = [];
             
-            // Get the number of datasets from the first taluka's data
-            const numDatasets = preFilteredData[district][firstTaluka].datasets.length;
+            // Get the number of datasets from the valid taluka's data
+            const numDatasets = preFilteredData[district][validTaluka].datasets.length;
             
             // Initialize aggregated datasets with empty arrays
             for (let i = 0; i < numDatasets; i++) {
-                const firstTalukaDataset = preFilteredData[district][firstTaluka].datasets[i];
+                const datasetTemplate = preFilteredData[district][validTaluka].datasets[i];
                 aggregatedDatasets.push({
-                    backgroundColor: firstTalukaDataset.backgroundColor,
-                    borderColor: firstTalukaDataset.borderColor,
-                    borderWidth: firstTalukaDataset.borderWidth || 1,
+                    backgroundColor: datasetTemplate.backgroundColor,
+                    borderColor: datasetTemplate.borderColor,
+                    borderWidth: datasetTemplate.borderWidth || 1,
                     data: new Array(labels.length).fill(0),
-                    fill: firstTalukaDataset.fill || false,
-                    label: originalDatasetLabels[i] || firstTalukaDataset.label,  // Preserve original label
-                    pointHoverRadius: firstTalukaDataset.pointHoverRadius || 3,
-                    pointRadius: firstTalukaDataset.pointRadius || 0,
-                    spanGaps: firstTalukaDataset.spanGaps || false,
-                    tension: firstTalukaDataset.tension || 0,
-                    pointBackgroundColor: firstTalukaDataset.pointBackgroundColor || firstTalukaDataset.borderColor
+                    fill: datasetTemplate.fill || false,
+                    label: originalDatasetLabels[i] || datasetTemplate.label,  // Preserve original label
+                    pointHoverRadius: datasetTemplate.pointHoverRadius || 3,
+                    pointRadius: datasetTemplate.pointRadius || 0,
+                    spanGaps: datasetTemplate.spanGaps || false,
+                    tension: datasetTemplate.tension || 0,
+                    pointBackgroundColor: datasetTemplate.pointBackgroundColor || datasetTemplate.borderColor
                 });
             }
             
@@ -479,11 +508,15 @@ const LineChartHandler = {
         // Function to populate taluka dropdown based on selected district
         function populateTalukaDropdown(district) {
             const talukaDropdown = document.getElementById('chartFilter');
+            if (!talukaDropdown) return; // Exit if dropdown doesn't exist
             
             // Clear existing options except the "All" option
             while (talukaDropdown.options.length > 1) {
                 talukaDropdown.remove(1);
             }
+            
+            // Create set to track unique taluka names to avoid duplicates
+            const uniqueTalukas = new Set();
             
             if (!district || !preFilteredData[district]) {
                 // If no district specified or invalid district, show all talukas
@@ -491,9 +524,41 @@ const LineChartHandler = {
                 
                 // Collect all talukas from all districts
                 Object.keys(preFilteredData).forEach(districtName => {
-                    Object.keys(preFilteredData[districtName]).forEach(talukaName => {
-                        allTalukas.push(talukaName);
-                    });
+                    // Check if this is a proper district with taluka objects
+                    if (typeof preFilteredData[districtName] === 'object' && 
+                        !preFilteredData[districtName].labels) {
+                        Object.keys(preFilteredData[districtName]).forEach(talukaName => {
+                            // Only add if not already in the set and it looks like a valid taluka name
+                            if (!uniqueTalukas.has(talukaName) && 
+                                talukaName !== 'datasets' && 
+                                talukaName !== 'labels' && 
+                                talukaName.indexOf('+') === -1 && 
+                                !talukaName.match(/^\\d+$/)) {
+                                
+                                // Check if this entry has filter metadata and matches the expected filter column
+                                const entry = preFilteredData[districtName][talukaName];
+                                if (entry && entry._filterColumn === columnMetadata.filter1Column) {
+                                    uniqueTalukas.add(talukaName);
+                                    allTalukas.push(talukaName);
+                                } else if (!entry._filterColumn) {
+                                    // If no metadata, add it as a fallback
+                                    uniqueTalukas.add(talukaName);
+                                    allTalukas.push(talukaName);
+                                }
+                            }
+                        });
+                    } else if (typeof preFilteredData[districtName] === 'object' && 
+                               preFilteredData[districtName]._filterColumn === columnMetadata.filter1Column) {
+                        // This is a filter1 value at the top level
+                        if (!uniqueTalukas.has(districtName) && 
+                            districtName !== 'datasets' && 
+                            districtName !== 'labels' && 
+                            districtName.indexOf('+') === -1 && 
+                            !districtName.match(/^\\d+$/)) {
+                            uniqueTalukas.add(districtName);
+                            allTalukas.push(districtName);
+                        }
+                    }
                 });
                 
                 // Sort talukas alphabetically
@@ -508,7 +573,29 @@ const LineChartHandler = {
                 });
             } else {
                 // Show only talukas for the specified district
-                const districtTalukas = Object.keys(preFilteredData[district]);
+                const districtTalukas = [];
+                
+                Object.keys(preFilteredData[district]).forEach(key => {
+                    // Check if this key appears to be a taluka name
+                    if (key !== 'datasets' && key !== 'labels' && 
+                        key.indexOf('+') === -1 && !key.match(/^\\d+$/)) {
+                        
+                        // Check if this entry has filter metadata and matches the expected filter column
+                        const entry = preFilteredData[district][key];
+                        if (entry && entry._filterColumn === columnMetadata.filter1Column) {
+                            if (!uniqueTalukas.has(key)) {
+                                uniqueTalukas.add(key);
+                                districtTalukas.push(key);
+                            }
+                        } else if (!entry || !entry._filterColumn) {
+                            // If no metadata, add it as a fallback
+                            if (!uniqueTalukas.has(key)) {
+                                uniqueTalukas.add(key);
+                                districtTalukas.push(key);
+                            }
+                        }
+                    }
+                });
                 
                 // Sort talukas alphabetically
                 districtTalukas.sort();
@@ -521,10 +608,6 @@ const LineChartHandler = {
                     talukaDropdown.add(option);
                 });
                 
-                // Update the chart title to include district name
-                const chartTitle = document.querySelector('.chart-title');
-                
-                
                 // Update filter data JSON
                 const chartFilterData = document.getElementById('chart-filter-data');
                 if (chartFilterData) {
@@ -535,111 +618,66 @@ const LineChartHandler = {
             }
         }
         
-        // Determine if we're using district-taluka hierarchy
-        const isHierarchicalData = ${mainFilterColumn === 'District' && chartFilterColumn === 'Taluka'};
-        
-        // Chart configuration
-        const ctx = document.getElementById('myChart').getContext('2d');
-        const chartData = ${JSON.stringify(chartConfig.data, null, 2)};
-        const chartOptions = ${JSON.stringify(chartConfig.options, null, 2)};
-
-        // Create chart with exact same configuration but remove redundant title
-        const hasMin = chartOptions?.scales?.y?.min !== undefined;
-
-        const chart = new Chart(ctx, {
-            type: 'line',
-            data: chartData,
-            options: {
-                ...chartOptions,
-                interaction: {
-                    mode: 'index',
-                    intersect: false
-                },
-                plugins: {
-                    ...chartOptions.plugins,
-                    // Remove title from chart as it's now in the header
-                    title: {
-                        display: false
-                    },
-                    tooltip: {
-                        backgroundColor: 'white', // Yellow tooltip background
-                        titleColor: 'black',
-                        bodyColor: 'black',
-                        animation: {
-                            duration: 50, // milliseconds (default is 400)
-                            easing: 'easeOutQuart' // easing function
-                        },
-                        callbacks: {
-                            label: function(context) {
-                                let label = context.dataset.label || '';
-                                if (label) {
-                                    label += ': ';
-                                }
-                                
-                                if (context.parsed.y !== null && context.parsed.y !== undefined) {
-                                    label += formatIndianNumber(context.parsed.y);
-                                } else {
-                                    label += 'No data'; // For null values, show 'No data' in tooltip
-                                }
-                                return label;
-                            }
-                        }
-                    },
-                    legend: {
-                        display: true,
-                        labels: {
-                            boxWidth: 20,        // Width of the color box
-                            boxHeight: 20,       // Height of the color box
-                            usePointStyle: true, // Makes it more like a round dot or checkbox
-                            pointStyle: 'rect',  // Use 'circle', 'rect', 'rectRounded', 'cross', etc.
-                            padding: 15,
-                            color: '#333',       // Label text color
-                            font: {
-                                size: 12,
-                            }
-                        }
-                    }
-                },
-                scales: {
-                    ...chartOptions.scales,
-                    x: {
-                        ...chartOptions.scales?.x,
-                        offset: true,
-                        grid: {
-                            drawTicks: true,
-                            drawOnChartArea: false,
-                        },
-                        ticks: {
-                            color: '#333'       // Optional: customize tick color
-                        }
-                    },
-                    y: {
-                        min: 0,
-                        ...chartOptions.scales?.y,
-                         offset: hasMin,
-                        grid: {
-                            color: 'rgba(0,0,0,0.06)', // Optional: customize grid color
-                            drawBorder: false     // ✅ Show tick marks
-                        },
-                        ticks: {
-                            callback: function(value) {
-                                return formatIndianNumber(value);
-                            },
-                            precision: 0,  // No decimals
-                            maxTicksLimit: 7,  // Maximum 7 ticks
-    
-                            color: '#333'       // Optional: customize tick color
-                        }
-                    }
-                },
-                spanGaps: false // Don't connect points across null values for line charts
+        // Function to populate second filter dropdown
+        function populateSecondFilterDropdown() {
+            const filter2Dropdown = document.getElementById('chartFilter2');
+            if (!filter2Dropdown) return; // Exit if dropdown doesn't exist
+            
+            // Clear existing options except the "All" option
+            while (filter2Dropdown.options.length > 1) {
+                filter2Dropdown.remove(1);
             }
-        });
-
-        // Store original dataset labels for reference during filtering
-        chart.originalLabels = originalDatasetLabels;
-
-        ${(chartFilterColumn || chartFilterColumn2) ? `
+            
+            // Create set to track unique values to avoid duplicates
+            const uniqueValues = new Set();
+            const filter2Values = [];
+            
+            // Collect values that match filter2 column
+            Object.keys(preFilteredData).forEach(key => {
+                const entry = preFilteredData[key];
+                
+                // Check if this entry has filter metadata and matches filter2 column
+                if (entry && entry._filterColumn === columnMetadata.filter2Column) {
+                    if (!uniqueValues.has(key) && 
+                        key !== 'datasets' && 
+                        key !== 'labels' && 
+                        key.indexOf('+') === -1 && 
+                        !key.match(/^\\d+$/)) {
+                        uniqueValues.add(key);
+                        filter2Values.push(key);
+                    }
+                }
+                
+                // Also check nested entries
+                if (typeof entry === 'object' && !entry.labels) {
+                    Object.keys(entry).forEach(nestedKey => {
+                        const nestedEntry = entry[nestedKey];
+                        if (nestedEntry && nestedEntry._filterColumn === columnMetadata.filter2Column) {
+                            if (!uniqueValues.has(nestedKey) && 
+                                nestedKey !== 'datasets' && 
+                                nestedKey !== 'labels' && 
+                                nestedKey.indexOf('+') === -1 && 
+                                !nestedKey.match(/^\\d+$/)) {
+                                uniqueValues.add(nestedKey);
+                                filter2Values.push(nestedKey);
+                            }
+                        }
+                    });
+                }
+            });
+            
+            // Sort values alphabetically
+            filter2Values.sort();
+            
+            // Add values to dropdown
+            filter2Values.forEach(value => {
+                const option = document.createElement('option');
+                option.value = value;
+                option.text = value;
+                filter2Dropdown.add(option);
+            });
+        }
+        
         // Function to check if preFilteredData has hierarchical structure
         function hasHierarchicalStructure() {
             if (!preFilteredData) return false;
@@ -672,28 +710,235 @@ const LineChartHandler = {
             return false;
         }
         
-        // Function to filter chart data based on selected value
-        function filterChartData() {
-            const filterValue = document.getElementById('chartFilter') ? document.getElementById('chartFilter').value : '';
-            const filterValue2 = document.getElementById('chartFilter2') ? document.getElementById('chartFilter2').value : '';
+        // Determine if we're using district-taluka hierarchy
+        const isHierarchicalData = ${mainFilterColumn === 'District' && chartFilterColumn === 'Taluka'};
+        
+        // Chart configuration
+        const ctx = document.getElementById('myChart').getContext('2d');
+        const chartData = ${JSON.stringify(chartConfig.data, null, 2)};
+        const chartOptions = ${JSON.stringify(chartConfig.options, null, 2)};
+
+        // Create chart with exact same configuration but remove redundant title
+        const hasMin = chartOptions?.scales?.y?.min !== undefined;
+
+        let chart;
+        try {
+            chart = new Chart(ctx, {
+                type: 'line',
+                data: chartData,
+                options: {
+                    ...chartOptions,
+                    interaction: {
+                        mode: 'index',
+                        intersect: false
+                    },
+                    plugins: {
+                        ...chartOptions.plugins,
+                        // Remove title from chart as it's now in the header
+                        title: {
+                            display: false
+                        },
+                        tooltip: {
+                            backgroundColor: 'white', // White tooltip background
+                            titleColor: 'black',
+                            bodyColor: 'black',
+                            animation: {
+                                duration: 50, // milliseconds (default is 400)
+                                easing: 'easeOutQuart' // easing function
+                            },
+                            callbacks: {
+                                label: function(context) {
+                                    let label = context.dataset.label || '';
+                                    if (label) {
+                                        label += ': ';
+                                    }
+                                    
+                                    if (context.parsed.y !== null && context.parsed.y !== undefined) {
+                                        label += formatIndianNumber(context.parsed.y);
+                                    } else {
+                                        label += 'No data'; // For null values, show 'No data' in tooltip
+                                    }
+                                    return label;
+                                }
+                            }
+                        },
+                        legend: {
+                            display: true,
+                            labels: {
+                                boxWidth: 20,        // Width of the color box
+                                boxHeight: 20,       // Height of the color box
+                                usePointStyle: true, // Makes it more like a round dot or checkbox
+                                pointStyle: 'rect',  // Use 'circle', 'rect', 'rectRounded', 'cross', etc.
+                                padding: 15,
+                                color: '#333',       // Label text color
+                                font: {
+                                    size: 12,
+                                }
+                            }
+                        }
+                    },
+                    scales: {
+                        ...chartOptions.scales,
+                        x: {
+                            ...chartOptions.scales?.x,
+                            offset: true,
+                            grid: {
+                                drawTicks: true,
+                                drawOnChartArea: false,
+                            },
+                            ticks: {
+                                color: '#333'       // Optional: customize tick color
+                            }
+                        },
+                        y: {
+                            min: 0,
+                            ...chartOptions.scales?.y,
+                            offset: hasMin,
+                            grid: {
+                                color: 'rgba(0,0,0,0.06)', // Optional: customize grid color
+                                drawBorder: false     // ✅ Show tick marks
+                            },
+                            ticks: {
+                                callback: function(value) {
+                                    return formatIndianNumber(value);
+                                },
+                                precision: 0,  // No decimals
+                                maxTicksLimit: 7,  // Maximum 7 ticks
+                                color: '#333'      // Optional: customize tick color
+                            }
+                        }
+                    },
+                    spanGaps: false // Don't connect points across null values for line charts
+                }
+            });
+
+            // Store original dataset labels for reference during filtering
+            chart.originalLabels = originalDatasetLabels;
+        } catch (e) {
+            console.error("Error creating chart:", e);
+            // Create an error message element
+            const errorDiv = document.createElement('div');
+            errorDiv.style.padding = '20px';
+            errorDiv.style.color = 'red';
+            errorDiv.style.textAlign = 'center';
+            errorDiv.innerHTML = '<strong>Error creating chart:</strong> ' + e.message + 
+                '<br><br>Please try reloading the page or contact support.';
             
-            // Get the district from URL or filter data
-            const district = getQueryParam('district') || 
-                            (document.getElementById('chart-filter-data') ? 
-                             JSON.parse(document.getElementById('chart-filter-data').textContent).mainFilterValue : '');
+            // Insert error message in the canvas container
+            const container = document.querySelector('.chart-canvas-container');
+            if (container) {
+                container.appendChild(errorDiv);
+            }
+        }
+        
+        // Initialize filters when the page loads
+        document.addEventListener('DOMContentLoaded', function() {
+            // Pre-process data to separate filter values by their columns
+            preprocessFilterData();
             
-            // Update the chart filter data in the JSON
-            const chartFilterData = document.getElementById('chart-filter-data');
-            if (chartFilterData) {
-                const filterDataObj = JSON.parse(chartFilterData.textContent);
-                filterDataObj.selectedFilterValue = filterValue;
-                filterDataObj.selectedFilterValue2 = filterValue2;
-                chartFilterData.textContent = JSON.stringify(filterDataObj);
+            // Check for district in URL parameters
+            const district = getQueryParam('district');
+            
+            // Populate the filter dropdowns
+            populateTalukaDropdown(district);
+            populateSecondFilterDropdown();
+            
+            // If there's a taluka parameter, select it in the dropdown
+            const taluka = getQueryParam('taluka');
+            if (taluka) {
+                const talukaDropdown = document.getElementById('chartFilter');
+                if (talukaDropdown) {
+                    // Find and select the option
+                    for (let i = 0; i < talukaDropdown.options.length; i++) {
+                        if (talukaDropdown.options[i].value === taluka) {
+                            talukaDropdown.selectedIndex = i;
+                            break;
+                        }
+                    }
+                }
             }
             
-            if (!chart || !chart.data) return;
+            // If there's a filter2 parameter, select it in the dropdown
+            const filter2 = getQueryParam('filter2');
+            if (filter2) {
+                const filter2Dropdown = document.getElementById('chartFilter2');
+                if (filter2Dropdown) {
+                    // Find and select the option
+                    for (let i = 0; i < filter2Dropdown.options.length; i++) {
+                        if (filter2Dropdown.options[i].value === filter2) {
+                            filter2Dropdown.selectedIndex = i;
+                            break;
+                        }
+                    }
+                }
+            }
             
+            // Apply the filter based on URL parameters
+            filterChartData();
+        });
+        
+        // Pre-process the filter data to ensure we can easily identify which values belong to which filter
+        function preprocessFilterData() {
+            // Get metadata from stored JSON
+            const chartFilterData = document.getElementById('chart-filter-data');
+            let metadata = {};
+            
+            if (chartFilterData) {
+                try {
+                    const filterDataObj = JSON.parse(chartFilterData.textContent);
+                    metadata = filterDataObj.columnMetadata || {};
+                } catch (e) {
+                    console.error("Error parsing chart filter data:", e);
+                }
+            }
+            
+            // If we don't have proper metadata, try to infer it
+            if (!metadata.filter1Column || !metadata.filter2Column) {
+                // Look through the data to see what metadata is already there
+                Object.keys(preFilteredData).forEach(key => {
+                    const entry = preFilteredData[key];
+                    if (entry && entry._filterColumn && !metadata.filter1Column) {
+                        metadata.filter1Column = entry._filterColumn;
+                    } else if (entry && entry._filterColumn && entry._filterColumn !== metadata.filter1Column && !metadata.filter2Column) {
+                        metadata.filter2Column = entry._filterColumn;
+                    }
+                });
+            }
+            
+            // Store the updated metadata
+            if (chartFilterData) {
+                try {
+                    const filterDataObj = JSON.parse(chartFilterData.textContent);
+                    filterDataObj.columnMetadata = metadata;
+                    chartFilterData.textContent = JSON.stringify(filterDataObj);
+                } catch (e) {
+                    console.error("Error updating chart filter data:", e);
+                }
+            }
+        }
+        
+        // Function to filter chart data based on selected value
+        function filterChartData() {
             try {
+                const filterValue = document.getElementById('chartFilter') ? document.getElementById('chartFilter').value : '';
+                const filterValue2 = document.getElementById('chartFilter2') ? document.getElementById('chartFilter2').value : '';
+                
+                // Get the district from URL or filter data
+                const district = getQueryParam('district') || 
+                                (document.getElementById('chart-filter-data') ? 
+                                 JSON.parse(document.getElementById('chart-filter-data').textContent).mainFilterValue : '');
+                
+                // Update the chart filter data in the JSON
+                const chartFilterData = document.getElementById('chart-filter-data');
+                if (chartFilterData) {
+                    const filterDataObj = JSON.parse(chartFilterData.textContent);
+                    filterDataObj.selectedFilterValue = filterValue;
+                    filterDataObj.selectedFilterValue2 = filterValue2;
+                    chartFilterData.textContent = JSON.stringify(filterDataObj);
+                }
+                
+                if (!chart || !chart.data) return;
+                
                 // Store current dataset visibility
                 const visibility = [];
                 chart.data.datasets.forEach((dataset, index) => {
@@ -804,9 +1049,167 @@ const LineChartHandler = {
                             displayFilterMessage(filterValue);
                         }
                     }
-                } 
-                // Handle second filter and combinations similar to existing code
-                // ... existing code for other filter scenarios ...
+                }
+                // Check for second filter only
+                else if (!filterValue && filterValue2) {
+                    // Look for the second filter value across all data
+                    if (preFilteredData[filterValue2]) {
+                        const filteredData = preFilteredData[filterValue2];
+                        if (filteredData && filteredData.labels && filteredData.datasets) {
+                            chart.data.labels = filteredData.labels;
+                            filteredData.datasets.forEach((dataset, i) => {
+                                if (i < chart.data.datasets.length) {
+                                    chart.data.datasets[i].data = dataset.data;
+                                    chart.data.datasets[i].label = originalDatasetLabels[i] || dataset.label;
+                                }
+                            });
+                        }
+                    } else {
+                        // Try looking in hierarchical structure
+                        let foundData = false;
+                        for (const parentKey in preFilteredData) {
+                            if (preFilteredData[parentKey] && preFilteredData[parentKey][filterValue2]) {
+                                const filteredData = preFilteredData[parentKey][filterValue2];
+                                chart.data.labels = filteredData.labels;
+                                filteredData.datasets.forEach((dataset, i) => {
+                                    if (i < chart.data.datasets.length) {
+                                        chart.data.datasets[i].data = dataset.data;
+                                        chart.data.datasets[i].label = originalDatasetLabels[i] || dataset.label;
+                                    }
+                                });
+                                foundData = true;
+                                break;
+                            }
+                        }
+                        
+                        if (!foundData) {
+                            // Look for combination keys
+                            for (const key in preFilteredData) {
+                                if (key.includes(filterValue2)) {
+                                    const filteredData = preFilteredData[key];
+                                    if (filteredData && filteredData.labels && filteredData.datasets) {
+                                        chart.data.labels = filteredData.labels;
+                                        filteredData.datasets.forEach((dataset, i) => {
+                                            if (i < chart.data.datasets.length) {
+                                                chart.data.datasets[i].data = dataset.data;
+                                                chart.data.datasets[i].label = originalDatasetLabels[i] || dataset.label;
+                                            }
+                                        });
+                                        foundData = true;
+                                        break;
+                                    }
+                                }
+                            }
+                            
+                            if (!foundData) {
+                                displayFilterMessage(filterValue2);
+                            }
+                        }
+                    }
+                }
+                // Both filters selected
+                else if (filterValue && filterValue2) {
+                    // Try to find data with the combined filter key
+                    const combinedKey = filterValue + "+" + filterValue2;
+                    
+                    if (preFilteredData[combinedKey]) {
+                        // Direct match with combined key
+                        const filteredData = preFilteredData[combinedKey];
+                        chart.data.labels = filteredData.labels;
+                        filteredData.datasets.forEach((dataset, i) => {
+                            if (i < chart.data.datasets.length) {
+                                chart.data.datasets[i].data = dataset.data;
+                                chart.data.datasets[i].label = originalDatasetLabels[i] || dataset.label;
+                            }
+                        });
+                    } else if (district && preFilteredData[district] && 
+                              preFilteredData[district][combinedKey]) {
+                        // Combined key within district
+                        const filteredData = preFilteredData[district][combinedKey];
+                        chart.data.labels = filteredData.labels;
+                        filteredData.datasets.forEach((dataset, i) => {
+                            if (i < chart.data.datasets.length) {
+                                chart.data.datasets[i].data = dataset.data;
+                                chart.data.datasets[i].label = originalDatasetLabels[i] || dataset.label;
+                            }
+                        });
+                    } else if (preFilteredData[filterValue] && 
+                              preFilteredData[filterValue][filterValue2]) {
+                        // Hierarchical structure with first filter as parent
+                        const filteredData = preFilteredData[filterValue][filterValue2];
+                        chart.data.labels = filteredData.labels;
+                        filteredData.datasets.forEach((dataset, i) => {
+                            if (i < chart.data.datasets.length) {
+                                chart.data.datasets[i].data = dataset.data;
+                                chart.data.datasets[i].label = originalDatasetLabels[i] || dataset.label;
+                            }
+                        });
+                    } else {
+                        // Check all possible combinations in the hierarchy
+                        let foundData = false;
+                        
+                        // Try to find the data in any hierarchical structure
+                        for (const parentKey in preFilteredData) {
+                            // Check if the parent key matches first filter
+                            if (parentKey === filterValue && preFilteredData[parentKey][filterValue2]) {
+                                const filteredData = preFilteredData[parentKey][filterValue2];
+                                chart.data.labels = filteredData.labels;
+                                filteredData.datasets.forEach((dataset, i) => {
+                                    if (i < chart.data.datasets.length) {
+                                        chart.data.datasets[i].data = dataset.data;
+                                        chart.data.datasets[i].label = originalDatasetLabels[i] || dataset.label;
+                                    }
+                                });
+                                foundData = true;
+                                break;
+                            }
+                            
+                            // Check if the parent is an object and might contain combinations
+                            if (typeof preFilteredData[parentKey] === 'object' && 
+                                preFilteredData[parentKey] !== null) {
+                                // Check for a combined key in the second level
+                                if (preFilteredData[parentKey][combinedKey]) {
+                                    const filteredData = preFilteredData[parentKey][combinedKey];
+                                    chart.data.labels = filteredData.labels;
+                                    filteredData.datasets.forEach((dataset, i) => {
+                                        if (i < chart.data.datasets.length) {
+                                            chart.data.datasets[i].data = dataset.data;
+                                            chart.data.datasets[i].label = originalDatasetLabels[i] || dataset.label;
+                                        }
+                                    });
+                                    foundData = true;
+                                    break;
+                                }
+                                
+                                // Check if second level keys match filter values
+                                for (const childKey in preFilteredData[parentKey]) {
+                                    if ((parentKey === filterValue && childKey === filterValue2) ||
+                                        (childKey === filterValue && parentKey === filterValue2)) {
+                                        const filteredData = preFilteredData[parentKey][childKey];
+                                        if (filteredData && filteredData.labels && filteredData.datasets) {
+                                            chart.data.labels = filteredData.labels;
+                                            filteredData.datasets.forEach((dataset, i) => {
+                                                if (i < chart.data.datasets.length) {
+                                                    chart.data.datasets[i].data = dataset.data;
+                                                    chart.data.datasets[i].label = originalDatasetLabels[i] || dataset.label;
+                                                }
+                                            });
+                                            foundData = true;
+                                            break;
+                                        }
+                                    }
+                                }
+                                
+                                if (foundData) break;
+                            }
+                        }
+                        
+                        if (!foundData) {
+                            // No matching data found for the combination
+                            displayFilterMessage(filterValue + " and " + filterValue2);
+                        }
+                    }
+                }
                 
                 // Restore dataset visibility
                 chart.data.datasets.forEach((dataset, index) => {
@@ -864,7 +1267,6 @@ const LineChartHandler = {
                 }
             }, 4000);
         }
-        ` : ''}
 
         // Add download functionality
         document.getElementById('downloadChartBtn').addEventListener('click', function() {
@@ -874,33 +1276,6 @@ const LineChartHandler = {
             link.download = '${chartTitle.replace(/\s+/g, '_')}.png';
             link.href = image;
             link.click();
-        });
-        
-        // Initialize the page based on URL parameters
-        document.addEventListener('DOMContentLoaded', function() {
-            // Check for district in URL parameters
-            const district = getQueryParam('district');
-            
-            // Populate the taluka dropdown based on the district
-            populateTalukaDropdown(district);
-            
-            // If there's a taluka parameter, select it in the dropdown
-            const taluka = getQueryParam('taluka');
-            if (taluka) {
-                const talukaDropdown = document.getElementById('chartFilter');
-                if (talukaDropdown) {
-                    // Find and select the option
-                    for (let i = 0; i < talukaDropdown.options.length; i++) {
-                        if (talukaDropdown.options[i].value === taluka) {
-                            talukaDropdown.selectedIndex = i;
-                            break;
-                        }
-                    }
-                }
-            }
-            
-            // Apply the filter based on URL parameters
-            filterChartData();
         });
     </script>
 </body>
@@ -912,48 +1287,33 @@ const LineChartHandler = {
 function formatIndianNumber(num) {
     if (num === null || num === undefined || isNaN(num)) return '';  // Return empty string for null values
     
-    // Handle negative numbers
     let isNegative = false;
     if (num < 0) {
         isNegative = true;
         num = Math.abs(num);
     }
     
-    // Format number to handle different magnitudes properly
     let formattedNumber;
-    
-    // For numbers less than 1,000, no special formatting needed
     if (num < 1000) {
         formattedNumber = num.toString();
     } else {
-        // Convert to string and split at decimal point
         const parts = num.toString().split('.');
         let integerPart = parts[0];
         
-        // First we get the last 3 digits
         const lastThree = integerPart.substring(integerPart.length - 3);
-        // Then we get the remaining digits
         const remaining = integerPart.substring(0, integerPart.length - 3);
         
-        // Now we format the remaining digits with commas after every 2 digits
         let formattedRemaining = '';
         if (remaining) {
             formattedRemaining = remaining.replace(/\\B(?=(\\d{2})+(?!\\d))/g, ',');
         }
         
-        // Combine the parts
         formattedNumber = formattedRemaining ? formattedRemaining + ',' + lastThree : lastThree;
         
-        // Add decimal part if exists
         if (parts.length > 1) {
             formattedNumber += '.' + parts[1];
         }
     }
     
-    // Add negative sign if needed
-    if (isNegative) {
-        formattedNumber = '-' + formattedNumber;
-    }
-    
-    return formattedNumber;
+    return isNegative ? '-' + formattedNumber : formattedNumber;
 }

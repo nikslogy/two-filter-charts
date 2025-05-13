@@ -397,7 +397,7 @@ document.addEventListener('DOMContentLoaded', function() {
                 // Update any other filter dropdowns with new unique values
                 if (filterColumn2Select.value && data.uniqueValues[filterColumn2Select.value]) {
                     // Update chart filter values
-                    populateChartFilterValues(data.uniqueValues[filterColumn2Select.value]);
+                    populateChartFilterValues(data.uniqueValues[filterColumn2Select.value], filterColumn2Select.value);
                 }
             } else {
                 alert('Error: ' + data.error);
@@ -415,7 +415,7 @@ document.addEventListener('DOMContentLoaded', function() {
         if (this.value) {
             // Get unique values for this column
             const uniqueValues = [...new Set(sheetData.map(row => row[this.value]).filter(val => val !== null))];
-            populateChartFilterValues(uniqueValues);
+            populateChartFilterValues(uniqueValues, this.value);
         } else {
             // Clear chart filter dropdown
             chartFilterValue.innerHTML = '<option value="">All</option>';
@@ -429,26 +429,52 @@ document.addEventListener('DOMContentLoaded', function() {
     });
     
     // Populate chart filter values
-    function populateChartFilterValues(values) {
+    function populateChartFilterValues(values, columnName) {
         chartFilterValue.innerHTML = '<option value="">All</option>';
         
+        // Use a set to track unique values
+        const uniqueValues = new Set();
+        
         values.forEach(value => {
-            const option = document.createElement('option');
-            option.value = value;
-            option.textContent = value;
-            chartFilterValue.appendChild(option);
+            // Only add actual filter values, not internal data structure keys
+            if (value && typeof value === 'string' && 
+                value !== 'datasets' && value !== 'labels' && 
+                value.indexOf('+') === -1 && !value.match(/^\d+$/)) {
+                
+                // Skip duplicates
+                if (!uniqueValues.has(value)) {
+                    uniqueValues.add(value);
+                    const option = document.createElement('option');
+                    option.value = value;
+                    option.textContent = value;
+                    chartFilterValue.appendChild(option);
+                }
+            }
         });
     }
     
     // Populate second chart filter values
-    function populateChartFilterValues2(values) {
+    function populateChartFilterValues2(values, columnName) {
         chartFilterValue2.innerHTML = '<option value="">All</option>';
         
+        // Use a set to track unique values
+        const uniqueValues = new Set();
+        
         values.forEach(value => {
-            const option = document.createElement('option');
-            option.value = value;
-            option.textContent = value;
-            chartFilterValue2.appendChild(option);
+            // Only add actual filter values, not internal data structure keys
+            if (value && typeof value === 'string' && 
+                value !== 'datasets' && value !== 'labels' && 
+                value.indexOf('+') === -1 && !value.match(/^\d+$/)) {
+                
+                // Skip duplicates
+                if (!uniqueValues.has(value)) {
+                    uniqueValues.add(value);
+                    const option = document.createElement('option');
+                    option.value = value;
+                    option.textContent = value;
+                    chartFilterValue2.appendChild(option);
+                }
+            }
         });
     }
     
@@ -520,7 +546,7 @@ document.addEventListener('DOMContentLoaded', function() {
                 
                 // Update chart filter values if chart filter column is selected
                 if (filterColumn2Select.value && data.chartFilterValues && data.chartFilterValues.length > 0) {
-                    populateChartFilterValues(data.chartFilterValues);
+                    populateChartFilterValues(data.chartFilterValues, filterColumn2Select.value);
                     chartFilterLabel.textContent = `Filter by ${filterColumn2Select.value}:`;
                     document.querySelector('.chart-filter-controls').classList.remove('hidden');
                 } else {
@@ -530,7 +556,7 @@ document.addEventListener('DOMContentLoaded', function() {
                 
                 // Update second chart filter values if second chart filter column is selected
                 if (filterColumn3Select.value && data.chartFilterValues2 && data.chartFilterValues2.length > 0) {
-                    populateChartFilterValues2(data.chartFilterValues2);
+                    populateChartFilterValues2(data.chartFilterValues2, filterColumn3Select.value);
                     chartFilterLabel2.textContent = `Filter by ${filterColumn3Select.value}:`;
                     document.querySelector('.chart-filter-controls').classList.remove('hidden');
                     
@@ -584,73 +610,72 @@ document.addEventListener('DOMContentLoaded', function() {
     }
     
     // Filter chart by selected value
-    // Filter chart by selected value
-chartFilterValue.addEventListener('change', function() {
-    if (!currentChart || !filterColumn2Select.value) return;
-    
-    const filterValue = this.value;
-    const isDistrictTalukaHierarchy = filterColumnSelect.value === 'District' && filterColumn2Select.value === 'Taluka';
-    
-    // Add a loading indicator
-    const loadingMessage = document.createElement('div');
-    loadingMessage.className = 'chart-loading-message';
-    loadingMessage.textContent = 'Updating chart...';
-    document.body.appendChild(loadingMessage);
-    
-    // Create request payload
-    const requestBody = {
-        filename: currentFileName,
-        sheet: currentSheetName,
-        xAxis: xAxisSelect.value,
-        yAxes: Array.from(document.querySelectorAll('.y-axis-item')).map(item => {
-            return {
-                column: item.querySelector('.y-axis-select').value,
-                color: item.querySelector('.series-color').value
-            };
-        }),
-        chartType: selectedChartType,
-        startRow: parseInt(startRowInput.value),
-        endRow: parseInt(endRowInput.value),
-        filterColumn: filterColumnSelect.value,
-        filterValue: filterValueSelect.value,
-        chartFilterColumn: filterColumn2Select.value,
-        chartFilterValue: filterValue,
-        chartFilterColumn2: filterColumn3Select.value,
-        chartFilterValue2: chartFilterValue2.value
-    };
-    
-    // Add hierarchy information if we're using district-taluka relationship
-    if (isDistrictTalukaHierarchy) {
-        requestBody.districtColumn = 'District';
-        requestBody.talukaColumn = 'Taluka';
-    }
-    
-    // Send request to apply filter
-    fetch('/apply_chart_filter', {
-        method: 'POST',
-        headers: {
-            'Content-Type': 'application/json',
-        },
-        body: JSON.stringify(requestBody)
-    })
-    .then(response => response.json())
-    .then(data => {
-        // Remove loading message
-        document.body.removeChild(loadingMessage);
+    chartFilterValue.addEventListener('change', function() {
+        if (!currentChart || !filterColumn2Select.value) return;
         
-        if (data.success) {
-            // Update chart with filtered data based on chart type
-            updateChart(data.chartData);
-        } else {
-            alert('Error applying filter: ' + data.error);
+        const filterValue = this.value;
+        const isDistrictTalukaHierarchy = filterColumnSelect.value === 'District' && filterColumn2Select.value === 'Taluka';
+        
+        // Add a loading indicator
+        const loadingMessage = document.createElement('div');
+        loadingMessage.className = 'chart-loading-message';
+        loadingMessage.textContent = 'Updating chart...';
+        document.body.appendChild(loadingMessage);
+        
+        // Create request payload
+        const requestBody = {
+            filename: currentFileName,
+            sheet: currentSheetName,
+            xAxis: xAxisSelect.value,
+            yAxes: Array.from(document.querySelectorAll('.y-axis-item')).map(item => {
+                return {
+                    column: item.querySelector('.y-axis-select').value,
+                    color: item.querySelector('.series-color').value
+                };
+            }),
+            chartType: selectedChartType,
+            startRow: parseInt(startRowInput.value),
+            endRow: parseInt(endRowInput.value),
+            filterColumn: filterColumnSelect.value,
+            filterValue: filterValueSelect.value,
+            chartFilterColumn: filterColumn2Select.value,
+            chartFilterValue: filterValue,
+            chartFilterColumn2: filterColumn3Select.value,
+            chartFilterValue2: chartFilterValue2.value
+        };
+        
+        // Add hierarchy information if we're using district-taluka relationship
+        if (isDistrictTalukaHierarchy) {
+            requestBody.districtColumn = 'District';
+            requestBody.talukaColumn = 'Taluka';
         }
-    })
-    .catch(error => {
-        document.body.removeChild(loadingMessage);
-        console.error('Error:', error);
-        alert('Error applying chart filter. Please try again.');
+        
+        // Send request to apply filter
+        fetch('/apply_chart_filter', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+            },
+            body: JSON.stringify(requestBody)
+        })
+        .then(response => response.json())
+        .then(data => {
+            // Remove loading message
+            document.body.removeChild(loadingMessage);
+            
+            if (data.success) {
+                // Update chart with filtered data based on chart type
+                updateChart(data.chartData);
+            } else {
+                alert('Error applying filter: ' + data.error);
+            }
+        })
+        .catch(error => {
+            document.body.removeChild(loadingMessage);
+            console.error('Error:', error);
+            alert('Error applying chart filter. Please try again.');
+        });
     });
-});
     
     // Filter chart by selected value for second filter
     chartFilterValue2.addEventListener('change', function() {
@@ -821,6 +846,12 @@ chartFilterValue.addEventListener('change', function() {
             // Store hierarchy mappings (taluka -> district)
             const hierarchyMappings = {};
             
+            // Store column metadata to help with filtering
+            const columnMetadata = {
+                filter1Column: chartFilterColumn,
+                filter2Column: chartFilterColumn2
+            };
+            
             // Track the number of fetch operations and completions
             let fetchCount = 0;
             let completedFetches = 0;
@@ -888,6 +919,13 @@ chartFilterValue.addEventListener('change', function() {
                             .then(response => response.json())
                             .then(data => {
                                 if (data.success) {
+                                    // Tag this data as belonging to filter1
+                                    const dataWithMetadata = {
+                                        ...data.chartData,
+                                        _filterColumn: chartFilterColumn,
+                                        _filterValue: filterOption
+                                    };
+                                    
                                     // Handle hierarchy information if present
                                     if (data.hierarchyInfo) {
                                         const { parentColumn, childColumn, parentValues, childValue } = data.hierarchyInfo;
@@ -901,14 +939,14 @@ chartFilterValue.addEventListener('change', function() {
                                             if (!preFilteredData[district]) {
                                                 preFilteredData[district] = {};
                                             }
-                                            preFilteredData[district][filterOption] = data.chartData;
+                                            preFilteredData[district][filterOption] = dataWithMetadata;
                                         } else {
                                             // Fallback to flat structure if parent information is missing
-                                            preFilteredData[filterOption] = data.chartData;
+                                            preFilteredData[filterOption] = dataWithMetadata;
                                         }
                                     } else {
                                         // Use flat structure for non-hierarchical data
-                                        preFilteredData[filterOption] = data.chartData;
+                                        preFilteredData[filterOption] = dataWithMetadata;
                                     }
                                 }
                                 completedFetches++;
@@ -927,11 +965,169 @@ chartFilterValue.addEventListener('change', function() {
                         }
                     }
                     
-                    // Process second filter options (similar to existing code)
-                    // ... existing code for second filter ...
+                    // Process second filter options
+                    if (chartFilterColumn2 && chartFilterOptions2.length > 0) {
+                        for (const filterOption2 of chartFilterOptions2) {
+                            if (!filterOption2) {
+                                // Skip empty option (All Values)
+                                continue;
+                            }
+                            
+                            // Create the request body with hierarchy information if applicable
+                            const requestBody = {
+                                filename: currentFileName,
+                                sheet: currentSheetName,
+                                xAxis: xAxisSelect.value,
+                                yAxes: Array.from(document.querySelectorAll('.y-axis-item')).map(item => {
+                                    return {
+                                        column: item.querySelector('.y-axis-select').value,
+                                        color: item.querySelector('.series-color').value
+                                    };
+                                }),
+                                chartType: selectedChartType,
+                                startRow: parseInt(startRowInput.value),
+                                endRow: parseInt(endRowInput.value),
+                                filterColumn: filterColumnSelect.value,
+                                filterValue: filterValueSelect.value,
+                                chartFilterColumn: chartFilterColumn,
+                                chartFilterValue: selectedFilterValue,
+                                chartFilterColumn2: chartFilterColumn2,
+                                chartFilterValue2: filterOption2
+                            };
+                            
+                            // Create a promise for this fetch operation
+                            const fetchPromise = fetch('/apply_chart_filter', {
+                                method: 'POST',
+                                headers: {
+                                    'Content-Type': 'application/json',
+                                },
+                                body: JSON.stringify(requestBody)
+                            })
+                            .then(response => response.json())
+                            .then(data => {
+                                if (data.success) {
+                                    // Tag this data as belonging to filter2
+                                    const dataWithMetadata = {
+                                        ...data.chartData,
+                                        _filterColumn: chartFilterColumn2,
+                                        _filterValue: filterOption2
+                                    };
+                                    
+                                    // Store data with second filter key
+                                    preFilteredData[filterOption2] = dataWithMetadata;
+                                }
+                                completedFetches++;
+                                
+                                // Update the loading message to show progress
+                                loadingDiv.textContent = `Preparing chart data... (${completedFetches}/${fetchCount})`;
+                            })
+                            .catch(error => {
+                                console.error('Error pre-filtering data for second filter ' + filterOption2, error);
+                                completedFetches++;
+                                loadingDiv.textContent = `Preparing chart data... (${completedFetches}/${fetchCount})`;
+                            });
+                            
+                            fetchPromises.push(fetchPromise);
+                            fetchCount++;
+                        }
+                    }
                     
-                    // Process combinations of both filters (similar to existing code)
-                    // ... existing code for combinations ...
+                    // Process combinations of both filters
+                    if (chartFilterColumn && chartFilterOptions.length > 0 && 
+                        chartFilterColumn2 && chartFilterOptions2.length > 0) {
+                        for (const filterOption of chartFilterOptions) {
+                            if (!filterOption) continue; // Skip empty option
+                            
+                            for (const filterOption2 of chartFilterOptions2) {
+                                if (!filterOption2) continue; // Skip empty option
+                                
+                                // Create the request body for the combination
+                                const requestBody = {
+                                    filename: currentFileName,
+                                    sheet: currentSheetName,
+                                    xAxis: xAxisSelect.value,
+                                    yAxes: Array.from(document.querySelectorAll('.y-axis-item')).map(item => {
+                                        return {
+                                            column: item.querySelector('.y-axis-select').value,
+                                            color: item.querySelector('.series-color').value
+                                        };
+                                    }),
+                                    chartType: selectedChartType,
+                                    startRow: parseInt(startRowInput.value),
+                                    endRow: parseInt(endRowInput.value),
+                                    filterColumn: filterColumnSelect.value,
+                                    filterValue: filterValueSelect.value,
+                                    chartFilterColumn: chartFilterColumn,
+                                    chartFilterValue: filterOption,
+                                    chartFilterColumn2: chartFilterColumn2,
+                                    chartFilterValue2: filterOption2
+                                };
+                                
+                                // Add district-taluka hierarchy information if applicable
+                                if (isDistrictTalukaHierarchy) {
+                                    requestBody.districtColumn = 'District';
+                                    requestBody.talukaColumn = 'Taluka';
+                                }
+                                
+                                // Create a promise for this fetch operation
+                                const fetchPromise = fetch('/apply_chart_filter', {
+                                    method: 'POST',
+                                    headers: {
+                                        'Content-Type': 'application/json',
+                                    },
+                                    body: JSON.stringify(requestBody)
+                                })
+                                .then(response => response.json())
+                                .then(data => {
+                                    if (data.success) {
+                                        // Store the data with a combined key
+                                        const combinedKey = filterOption + "+" + filterOption2;
+                                        
+                                        // Tag this data with both filters
+                                        const dataWithMetadata = {
+                                            ...data.chartData,
+                                            _filterColumn1: chartFilterColumn,
+                                            _filterValue1: filterOption,
+                                            _filterColumn2: chartFilterColumn2,
+                                            _filterValue2: filterOption2
+                                        };
+                                        
+                                        // Store at the root level
+                                        preFilteredData[combinedKey] = dataWithMetadata;
+                                        
+                                        // Also store hierarchically if applicable
+                                        if (isDistrictTalukaHierarchy && hierarchyMappings[filterOption]) {
+                                            const district = hierarchyMappings[filterOption];
+                                            if (!preFilteredData[district]) {
+                                                preFilteredData[district] = {};
+                                            }
+                                            preFilteredData[district][combinedKey] = dataWithMetadata;
+                                        }
+                                        
+                                        // Store in the first filter's hierarchy if possible
+                                        if (preFilteredData[filterOption] && typeof preFilteredData[filterOption] === 'object') {
+                                            // Check if it's a data object rather than a nested structure
+                                            if (!preFilteredData[filterOption].labels) {
+                                                preFilteredData[filterOption][filterOption2] = dataWithMetadata;
+                                            }
+                                        }
+                                    }
+                                    completedFetches++;
+                                    
+                                    // Update the loading message to show progress
+                                    loadingDiv.textContent = `Preparing chart data... (${completedFetches}/${fetchCount})`;
+                                })
+                                .catch(error => {
+                                    console.error(`Error pre-filtering data for combination ${filterOption} + ${filterOption2}`, error);
+                                    completedFetches++;
+                                    loadingDiv.textContent = `Preparing chart data... (${completedFetches}/${fetchCount})`;
+                                });
+                                
+                                fetchPromises.push(fetchPromise);
+                                fetchCount++;
+                            }
+                        }
+                    }
                     
                     // Wait for all fetch operations to complete
                     return Promise.all(fetchPromises);
@@ -994,14 +1190,14 @@ chartFilterValue.addEventListener('change', function() {
                     // Generate the appropriate HTML based on chart type
                     generateAndDownloadChartHTML(chartConfig, chartTitle, description, additionalInfo, 
                                                chartFilterColumn, chartFilterOptions, selectedFilterValue, 
-                                               preFilteredData, chartFilterColumn2, chartFilterOptions2, selectedFilterValue2);
+                                               preFilteredData, chartFilterColumn2, chartFilterOptions2, selectedFilterValue2, columnMetadata);
                 });
             } else {
                 // No filter options, just generate HTML
                 document.body.removeChild(loadingDiv);
                 generateAndDownloadChartHTML(chartConfig, chartTitle, description, additionalInfo, 
                                            chartFilterColumn, chartFilterOptions, selectedFilterValue, 
-                                           preFilteredData, chartFilterColumn2, chartFilterOptions2, selectedFilterValue2);
+                                           preFilteredData, chartFilterColumn2, chartFilterOptions2, selectedFilterValue2, columnMetadata);
             }
         }
     });
@@ -1009,7 +1205,7 @@ chartFilterValue.addEventListener('change', function() {
     // Generate and download HTML for the current chart
     function generateAndDownloadChartHTML(chartConfig, chartTitle, description, additionalInfo, 
                                          chartFilterColumn, chartFilterOptions, selectedFilterValue, 
-                                         preFilteredData, chartFilterColumn2, chartFilterOptions2, selectedFilterValue2) {
+                                         preFilteredData, chartFilterColumn2, chartFilterOptions2, selectedFilterValue2, columnMetadata) {
         // Get chart type handler
         let chartHandler;
         if (selectedChartType === 'line') {
@@ -1039,28 +1235,28 @@ chartFilterValue.addEventListener('change', function() {
                 chartConfig, chartTitle, description, additionalInfo, 
                 chartFilterColumn1, chartFilterOptions, selectedFilterValue, 
                 preFilteredData, chartFilterColumn2, chartFilterOptions2, selectedFilterValue2,
-                mainFilterColumn, mainFilterValue
+                mainFilterColumn, mainFilterValue, columnMetadata
             );
         } else if (selectedChartType === 'bar') {
             chartHTML = chartHandler.generateBarChartHTML(
                 chartConfig, chartTitle, description, additionalInfo, 
                 chartFilterColumn1, chartFilterOptions, selectedFilterValue, 
                 preFilteredData, chartFilterColumn2, chartFilterOptions2, selectedFilterValue2,
-                mainFilterColumn, mainFilterValue
+                mainFilterColumn, mainFilterValue, columnMetadata
             );
         } else if (selectedChartType === 'stackedBar') {
             chartHTML = chartHandler.generateStackedBarChartHTML(
                 chartConfig, chartTitle, description, additionalInfo, 
                 chartFilterColumn1, chartFilterOptions, selectedFilterValue, 
                 preFilteredData, chartFilterColumn2, chartFilterOptions2, selectedFilterValue2,
-                mainFilterColumn, mainFilterValue
+                mainFilterColumn, mainFilterValue, columnMetadata
             );
         } else if (selectedChartType === 'percentStackedBar') {
             chartHTML = chartHandler.generatePercentStackedBarChartHTML(
                 chartConfig, chartTitle, description, additionalInfo, 
                 chartFilterColumn1, chartFilterOptions, selectedFilterValue, 
                 preFilteredData, chartFilterColumn2, chartFilterOptions2, selectedFilterValue2,
-                mainFilterColumn, mainFilterValue
+                mainFilterColumn, mainFilterValue, columnMetadata
             );
         }
         
