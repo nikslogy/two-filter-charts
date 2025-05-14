@@ -203,7 +203,7 @@ const BarChartHandler = {
     },
     
     // Generate HTML for exporting bar chart
-    generateBarChartHTML: function(chartConfig, chartTitle, description, additionalInfo, chartFilterColumn, chartFilterOptions, selectedFilterValue, preFilteredData, chartFilterColumn2, chartFilterOptions2, selectedFilterValue2, mainFilterColumn, mainFilterValue) {
+    generateBarChartHTML: function(chartConfig, chartTitle, description, additionalInfo, chartFilterColumn, chartFilterOptions, selectedFilterValue, preFilteredData, chartFilterColumn2, chartFilterOptions2, selectedFilterValue2, mainFilterColumn, mainFilterValue, columnMetadata) {
         return `
 <!DOCTYPE html>
 <html>
@@ -329,7 +329,8 @@ const BarChartHandler = {
             selectedFilterValue: selectedFilterValue,
             filterColumn2: chartFilterColumn2,
             selectedFilterValue2: selectedFilterValue2,
-            chartType: 'bar'
+            chartType: 'bar',
+            columnMetadata: columnMetadata || {}
         })}
     </script>
     
@@ -746,7 +747,7 @@ const BarChartHandler = {
                     }
                 } 
                 // Check for first filter - look for taluka in district if district is specified
-                else if (filterValue && district && preFilteredData[district] && preFilteredData[district][filterValue]) {
+                else if (filterValue && !filterValue2 && district && preFilteredData[district] && preFilteredData[district][filterValue]) {
                     // Use pre-filtered data from the specified district
                     const filteredData = preFilteredData[district][filterValue];
                     
@@ -770,7 +771,7 @@ const BarChartHandler = {
                     }
                 }
                 // Check for first filter across all districts if hierarchical
-                else if (filterValue && hasHierarchicalStructure()) {
+                else if (filterValue && !filterValue2 && hasHierarchicalStructure()) {
                     // Search for the taluka across all districts
                     let filteredData = null;
                     let foundDistrict = '';
@@ -836,10 +837,10 @@ const BarChartHandler = {
                         });
                     }
                 } 
-                // Check for second filter
-                else if (!filterValue && filterValue2 && preFilteredData.filter2 && preFilteredData.filter2[filterValue2]) {
-                    // Use pre-filtered data from the server for filter 2
-                    const filteredData = preFilteredData.filter2[filterValue2];
+                // Check for second filter only
+                else if (!filterValue && filterValue2 && preFilteredData[filterValue2]) {
+                    // Use pre-filtered data for filter 2
+                    const filteredData = preFilteredData[filterValue2];
                     
                     // Check if we have valid data
                     if (filteredData && filteredData.labels && filteredData.datasets) {
@@ -852,53 +853,135 @@ const BarChartHandler = {
                                 chart.data.datasets[i].data = dataset.data;
                                 chart.data.datasets[i].label = dataset.label || originalChartData.datasets[i].label;
                             }
-                        });
-                    }
-                }
-                // If both filters have values, use the second one (simplification)
-                else if (filterValue && filterValue2 && preFilteredData.filter2 && preFilteredData.filter2[filterValue2]) {
-                    // Use pre-filtered data from the server for filter 2
-                    const filteredData = preFilteredData.filter2[filterValue2];
-                    
-                    // Check if we have valid data
-                    if (filteredData && filteredData.labels && filteredData.datasets) {
-                        // Update labels and datasets
-                        chart.data.labels = filteredData.labels;
-                        
-                        // Update each dataset's data while preserving other properties
-                        filteredData.datasets.forEach((dataset, i) => {
-                            if (i < chart.data.datasets.length) {
-                                chart.data.datasets[i].data = dataset.data;
-                                chart.data.datasets[i].label = dataset.label || originalChartData.datasets[i].label;
-                            }
-                        });
-                    }
-                } else {
-                    // Fallback to client-side filtering if no pre-filtered data is available
-                    console.log("No pre-filtered data available, using fallback filter");
-                    
-                    // Try exact match in x-axis labels (categorical data)
-                    const matchingIndices = [];
-                    originalChartData.labels.forEach((label, i) => {
-                        if ((filterValue && String(label).toLowerCase() === String(filterValue).toLowerCase()) ||
-                            (filterValue2 && String(label).toLowerCase() === String(filterValue2).toLowerCase())) {
-                            matchingIndices.push(i);
-                        }
-                    });
-                    
-                    if (matchingIndices.length > 0) {
-                        // Filter data to only show matching categories
-                        chart.data.labels = matchingIndices.map(i => originalChartData.labels[i]);
-                        chart.data.datasets.forEach((dataset, dsIndex) => {
-                            dataset.data = matchingIndices.map(i => originalChartData.datasets[dsIndex].data[i]);
                         });
                     } else {
-                        // No exact matches found, show message
-                        displayFilterMessage(filterValue || filterValue2);
+                        // Try looking in hierarchical structure
+                        let foundData = false;
+                        for (const parentKey in preFilteredData) {
+                            if (preFilteredData[parentKey] && preFilteredData[parentKey][filterValue2]) {
+                                const filteredData = preFilteredData[parentKey][filterValue2];
+                                chart.data.labels = filteredData.labels;
+                                filteredData.datasets.forEach((dataset, i) => {
+                                    if (i < chart.data.datasets.length) {
+                                        chart.data.datasets[i].data = dataset.data;
+                                        chart.data.datasets[i].label = dataset.label || originalChartData.datasets[i].label;
+                                    }
+                                });
+                                foundData = true;
+                                break;
+                            }
+                        }
+                        
+                        if (!foundData) {
+                            displayFilterMessage(filterValue2);
+                        }
+                    }
+                }
+                // Both filters selected
+                else if (filterValue && filterValue2) {
+                    // Try to find data with the combined filter key
+                    const combinedKey = filterValue + "+" + filterValue2;
+                    
+                    if (preFilteredData[combinedKey]) {
+                        // Direct match with combined key
+                        const filteredData = preFilteredData[combinedKey];
+                        chart.data.labels = filteredData.labels;
+                        filteredData.datasets.forEach((dataset, i) => {
+                            if (i < chart.data.datasets.length) {
+                                chart.data.datasets[i].data = dataset.data;
+                                chart.data.datasets[i].label = dataset.label || originalChartData.datasets[i].label;
+                            }
+                        });
+                    } else if (district && preFilteredData[district] && 
+                              preFilteredData[district][combinedKey]) {
+                        // Combined key within district
+                        const filteredData = preFilteredData[district][combinedKey];
+                        chart.data.labels = filteredData.labels;
+                        filteredData.datasets.forEach((dataset, i) => {
+                            if (i < chart.data.datasets.length) {
+                                chart.data.datasets[i].data = dataset.data;
+                                chart.data.datasets[i].label = dataset.label || originalChartData.datasets[i].label;
+                            }
+                        });
+                    } else if (preFilteredData[filterValue] && 
+                              preFilteredData[filterValue][filterValue2]) {
+                        // Hierarchical structure with first filter as parent
+                        const filteredData = preFilteredData[filterValue][filterValue2];
+                        chart.data.labels = filteredData.labels;
+                        filteredData.datasets.forEach((dataset, i) => {
+                            if (i < chart.data.datasets.length) {
+                                chart.data.datasets[i].data = dataset.data;
+                                chart.data.datasets[i].label = dataset.label || originalChartData.datasets[i].label;
+                            }
+                        });
+                    } else {
+                        // Check all possible combinations in the hierarchy
+                        let foundData = false;
+                        
+                        // Try to find the data in any hierarchical structure
+                        for (const parentKey in preFilteredData) {
+                            // Check if the parent key matches first filter
+                            if (parentKey === filterValue && preFilteredData[parentKey][filterValue2]) {
+                                const filteredData = preFilteredData[parentKey][filterValue2];
+                                chart.data.labels = filteredData.labels;
+                                filteredData.datasets.forEach((dataset, i) => {
+                                    if (i < chart.data.datasets.length) {
+                                        chart.data.datasets[i].data = dataset.data;
+                                        chart.data.datasets[i].label = dataset.label || originalChartData.datasets[i].label;
+                                    }
+                                });
+                                foundData = true;
+                                break;
+                            }
+                            
+                            // Check if the parent is an object and might contain combinations
+                            if (typeof preFilteredData[parentKey] === 'object' && 
+                                preFilteredData[parentKey] !== null) {
+                                // Check for a combined key in the second level
+                                if (preFilteredData[parentKey][combinedKey]) {
+                                    const filteredData = preFilteredData[parentKey][combinedKey];
+                                    chart.data.labels = filteredData.labels;
+                                    filteredData.datasets.forEach((dataset, i) => {
+                                        if (i < chart.data.datasets.length) {
+                                            chart.data.datasets[i].data = dataset.data;
+                                            chart.data.datasets[i].label = dataset.label || originalChartData.datasets[i].label;
+                                        }
+                                    });
+                                    foundData = true;
+                                    break;
+                                }
+                                
+                                // Check if second level keys match filter values
+                                for (const childKey in preFilteredData[parentKey]) {
+                                    if ((parentKey === filterValue && childKey === filterValue2) ||
+                                        (childKey === filterValue && parentKey === filterValue2)) {
+                                        const filteredData = preFilteredData[parentKey][childKey];
+                                        if (filteredData && filteredData.labels && filteredData.datasets) {
+                                            chart.data.labels = filteredData.labels;
+                                            filteredData.datasets.forEach((dataset, i) => {
+                                                if (i < chart.data.datasets.length) {
+                                                    chart.data.datasets[i].data = dataset.data;
+                                                    chart.data.datasets[i].label = dataset.label || originalChartData.datasets[i].label;
+                                                }
+                                            });
+                                            foundData = true;
+                                            break;
+                                        }
+                                    }
+                                }
+                                
+                                if (foundData) break;
+                            }
+                        }
+                        
+                        if (!foundData) {
+                            // No matching data found for the combination
+                            displayFilterMessage(filterValue + " and " + filterValue2);
+                        }
                     }
                 }
                 
-                // Restore dataset visibility that wasn't specifically changed
+                // Restore dataset visibility
                 chart.data.datasets.forEach((dataset, index) => {
                     if (chart.getDatasetMeta(index).hidden === undefined) {
                         chart.getDatasetMeta(index).hidden = !visibility[index];
@@ -977,13 +1060,20 @@ const BarChartHandler = {
             }, 200); // Small delay to ensure rendering is complete
         });
         
+        // Column metadata to identify filter types
+        const columnMetadata = ${JSON.stringify(columnMetadata || {}, null, 2)};
+        
         // Initialize the page based on URL parameters
         document.addEventListener('DOMContentLoaded', function() {
+            // Pre-process data to separate filter values by their columns
+            preprocessFilterData();
+            
             // Check for district in URL parameters
             const district = getQueryParam('district');
             
-            // Populate the taluka dropdown based on the district
+            // Populate the filter dropdowns
             populateTalukaDropdown(district);
+            populateSecondFilterDropdown();
             
             // If there's a taluka parameter, select it in the dropdown
             const taluka = getQueryParam('taluka');
