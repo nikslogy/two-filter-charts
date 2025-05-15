@@ -204,7 +204,7 @@ const LineChartHandler = {
     <style>
         body { 
             font-family: Lato; 
-            margin: 20px; 
+            
             background-color: #f5f5f5;
         }
         .chart-container { 
@@ -252,9 +252,10 @@ const LineChartHandler = {
             color: black;
         }
         .chart-filter-group select {
-            padding: 6px 5px;
+            padding: 2px 5px;
             color:rgb(0, 0, 0);
             border: 1px solid #863F3F;
+            border-radius:6px;
             font-size: 12px;
             min-width: 100px;
         }
@@ -306,6 +307,67 @@ const LineChartHandler = {
             transform: translateY(-2px);
             box-shadow: 0 2px 5px rgba(0,0,0,0.1);
         }
+        select#chartFilter2,select#chartFilter {
+          margin-left: 1px;
+          width: 80px;  /* Decreased width from the default */
+          min-width: 85px; /* Override the min-width from the parent class */
+        }
+
+        @media (max-width: 767px) {
+            .chart-container {
+            max-width: 1000px; 
+            width: 95%; 
+            margin: 0  auto; 
+            background-color: white;
+            box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
+            /* border-radius: 8px; */
+            padding: 8px;
+            position: relative;
+            }
+            
+            .chart-logo {
+                width: 60px;
+            }
+            
+            .chart-title {
+                font-size: 16px;
+                margin-left: 64px;
+            }
+            
+            .chart-filter-group {
+                margin-left: 0;
+                justify-content: left;
+                width: 100%;
+            }
+            
+            .chart-filter-controls {
+                justify-content: center;
+            }
+            
+            .chart-canvas-container {
+                height: 300px;
+            }
+            
+            .chart-description, .chart-additional-info {
+                font-size: 9px;
+                padding-left: 0;
+            }
+        }
+        
+        @media (min-width: 768px) and (max-width: 991px) {
+            .chart-canvas-container {
+                height: 400px;
+            }
+            
+            .chart-title {
+                font-size: 18px;
+            }
+            
+            .chart-filter-group {
+                margin-left: 20px;
+            }
+        }  
+
     </style>
 </head>
 <body>
@@ -381,6 +443,44 @@ const LineChartHandler = {
     </div>
     
     <script>
+        // // Indian number formatting function
+        // function formatIndianNumber(num) {
+        //     if (num === null || num === undefined || isNaN(num)) return '';  // Return empty string for null values
+            
+        //     let isNegative = false;
+        //     if (num < 0) {
+        //         isNegative = true;
+        //         num = Math.abs(num);
+        //     }
+            
+        //     let formattedNumber;
+        //     if (num < 1000) {
+        //         formattedNumber = num.toString();
+        //     } else {
+        //         const parts = num.toString().split('.');
+        //         let integerPart = parts[0];
+                
+        //         const lastThree = integerPart.substring(integerPart.length - 3);
+        //         const remaining = integerPart.substring(0, integerPart.length - 3);
+                
+        //         let formattedRemaining = '';
+        //         if (remaining) {
+        //             formattedRemaining = remaining.replace(/\\B(?=(\\d{2})+(?!\\d))/g, ',');
+        //         }
+                
+        //         formattedNumber = formattedRemaining ? formattedRemaining + ',' + lastThree : lastThree;
+                
+        //         if (parts.length > 1) {
+        //             formattedNumber += '.' + parts[1];
+        //         }
+        //     }
+            
+        //     return isNegative ? '-' + formattedNumber : formattedNumber;
+        // }
+
+
+
+        // Indian number formatting function in Cr,L,K
         // Indian number formatting function
         function formatIndianNumber(num) {
             if (num === null || num === undefined || isNaN(num)) return '';  // Return empty string for null values
@@ -392,29 +492,52 @@ const LineChartHandler = {
             }
             
             let formattedNumber;
-            if (num < 1000) {
+            
+            // For numbers >= 10,000,000, display in crores format
+            if (num >= 10000000) {
+                formattedNumber = (num / 10000000).toFixed(1) + 'Cr';
+                // Remove .0 if the decimal is zero
+                formattedNumber = formattedNumber.replace('.0Cr', 'Cr');
+            }
+            // For numbers >= 100,000, display in lakhs format
+            else if (num >= 100000) {
+                formattedNumber = (num / 100000).toFixed(1) + 'L';
+                // Remove .0 if the decimal is zero
+                formattedNumber = formattedNumber.replace('.0L', 'L');
+            }
+            // For numbers >= 1,000, display in thousands format
+            else if (num >= 1000) {
+                formattedNumber = (num / 1000).toFixed(1) + 'K';
+                // Remove .0 if the decimal is zero
+                formattedNumber = formattedNumber.replace('.0K', 'K');
+            }
+            else {
                 formattedNumber = num.toString();
-            } else {
-                const parts = num.toString().split('.');
-                let integerPart = parts[0];
-                
-                const lastThree = integerPart.substring(integerPart.length - 3);
-                const remaining = integerPart.substring(0, integerPart.length - 3);
-                
-                let formattedRemaining = '';
-                if (remaining) {
-                    formattedRemaining = remaining.replace(/\\B(?=(\\d{2})+(?!\\d))/g, ',');
-                }
-                
-                formattedNumber = formattedRemaining ? formattedRemaining + ',' + lastThree : lastThree;
-                
-                if (parts.length > 1) {
-                    formattedNumber += '.' + parts[1];
-                }
             }
             
             return isNegative ? '-' + formattedNumber : formattedNumber;
         }
+
+        // Mobile-friendly number formatting function (now identical to formatIndianNumber)
+        function formatMobileNumber(num) {
+            return formatIndianNumber(num);
+        }
+
+        // Function to check if device is mobile
+        function isMobileDevice() {
+            return window.innerWidth < 768;
+        }
+
+        // Function to get the appropriate number formatter based on device
+        function getFormatter() {
+            return formatIndianNumber; // Now we can just use formatIndianNumber for all devices
+        }
+
+
+
+
+
+
 
         // Store original chart data for filtering
         const originalChartData = ${JSON.stringify(chartConfig.data, null, 2)};
@@ -721,6 +844,10 @@ const LineChartHandler = {
         // Create chart with exact same configuration but remove redundant title
         const hasMin = chartOptions?.scales?.y?.min !== undefined;
 
+        const hasOnlyOneDataset = chartData.datasets.length === 1;
+
+        const isMobile = window.innerWidth < 768;
+
         let chart;
         try {
             chart = new Chart(ctx, {
@@ -763,7 +890,7 @@ const LineChartHandler = {
                             }
                         },
                         legend: {
-                            display: true,
+                            display: !hasOnlyOneDataset,
                             labels: {
                                 boxWidth: 20,        // Width of the color box
                                 boxHeight: 20,       // Height of the color box
@@ -772,7 +899,7 @@ const LineChartHandler = {
                                 padding: 15,
                                 color: '#333',       // Label text color
                                 font: {
-                                    size: 12,
+                                 size: isMobile ? 10 : 12,
                                 }
                             }
                         }
@@ -787,7 +914,12 @@ const LineChartHandler = {
                                 drawOnChartArea: false,
                             },
                             ticks: {
-                                color: '#333'       // Optional: customize tick color
+                                color: '#333',       // Optional: customize tick color
+                            
+                                maxTicksLimit: isMobile ? 4 : 15,
+                             font: {
+                                size: isMobile ? 10 : 12, // Adjust font size dynamically                                        
+                                }
                             }
                         },
                         y: {
@@ -804,7 +936,10 @@ const LineChartHandler = {
                                 },
                                 precision: 0,  // No decimals
                                 maxTicksLimit: 7,  // Maximum 7 ticks
-                                color: '#333'      // Optional: customize tick color
+                                color: '#333',      // Optional: customize tick color
+                            font: {
+                                size: isMobile ? 10 : 12, // Adjust font size dynamically            
+                                }
                             }
                         }
                     },
