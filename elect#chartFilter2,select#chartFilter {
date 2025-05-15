@@ -1,0 +1,335 @@
+[33mcommit 69b40d3db63534b7eff798adb1ecbaaf019cdc06[m[33m ([m[1;36mHEAD[m[33m -> [m[1;32mmain[m[33m)[m
+Author: vaibhav <vaibhavnagargoje2000@gmail.com>
+Date:   Thu May 15 12:01:39 2025 +0530
+
+    responsive, x-axis dynamic , font dynamic
+
+[33mcommit 09a45801c660aa6f072dd4004756b9ef8c9ab824[m[33m ([m[1;31morigin/main[m[33m, [m[1;31morigin/HEAD[m[33m)[m
+Author: nikslogy <nikitpotdar@gmail.com>
+Date:   Wed May 14 14:46:45 2025 +0530
+
+    bar filter working
+
+[33mcommit c96a9b0fc0f1ebc77382856d6047cf57d5b55e14[m
+Author: nikslogy <nikitpotdar@gmail.com>
+Date:   Tue May 13 09:24:20 2025 +0530
+
+    second filter working notice 1
+
+[33mcommit 05dfd754f270dd2fcd08f2e2738c83aa0a82c7ee[m
+Author: nikslogy <nikitpotdar@gmail.com>
+Date:   Mon May 12 11:53:07 2025 +0530
+
+    filter text change
+
+[33mcommit 1c5accaed8a46a52b08bd128867d869e6bd2d010[m
+Author: nikslogy <nikitpotdar@gmail.com>
+Date:   Mon May 12 11:49:07 2025 +0530
+
+    enabled filters
+
+[33mcommit a0bdee1e63b8b0ec02b5e95b70535237d6642c62[m
+Author: vaibhav <vaibhavnagargoje2000@gmail.com>
+Date:   Mon May 5 18:09:58 2025 +0530
+
+    fixed bar chart calculation and genrating error
+
+[33mcommit 98704ccca616d32dca974bc0dff536da7dae0cd7[m
+Author: vaibhav <vaibhavnagargoje2000@gmail.com>
+Date:   Mon May 5 16:25:32 2025 +0530
+
+    indian number format fixed
+
+[33mcommit 6b886121ef0f5eaf612c12446e2186fd18aab2d2[m
+Author: vaibhav <vaibhavnagargoje2000@gmail.com>
+Date:   Mon May 5 15:42:01 2025 +0530
+
+    line chart error done
+
+[33mcommit 170dec0065473ea2e6e87ec3a90b157355cd5417[m
+Author: vaibhav <vaibhavnagargoje2000@gmail.com>
+Date:   Tue Apr 29 02:50:18 2025 +0530
+
+     percentage stack bar replication with error slove
+
+[33mcommit df766aaaa5ebdf6e117c138a6d642281b8f2ef29[m
+Author: vaibhav <vaibhavnagargoje2000@gmail.com>
+Date:   Mon Apr 28 00:28:24 2025 +0530
+
+    script 'under maintanance' set ln=223
+
+[33mcommit 36a674b60b9b1331f357b26c97d4a95a75ccac5b[m
+Author: vaibhav <vaibhavnagargoje2000@gmail.com>
+Date:   Mon Apr 28 00:20:01 2025 +0530
+
+    disabled 4th filter
+
+[33mcommit e2091e21964ce1ab37a72880223231873a15fdec[m
+Author: vaibhav <vaibhavnagargoje2000@gmail.com>
+Date:   Mon Apr 28 00:00:33 2025 +0530
+
+     static Bar replecation, bar lable fix, line animation to 50
+
+[33mcommit 4b4c33714e96989d0fa2559a30153cfa77402031[m
+Author: vaibhav <vaibhavnagargoje2000@gmail.com>
+Date:   Sun Apr 27 12:33:55 2025 +0530
+
+    updated procfile
+
+[33mcommit a476171ef41c5cb4a46b9e7ea61fc154c4df1ea3[m
+Author: vaibhav <vaibhavnagargoje2000@gmail.com>
+Date:   Sun Apr 27 12:28:15 2025 +0530
+
+    updated name == main
+
+[33mcommit d0971ab40f600e956ca7155be10de6d796d68efc[m
+Author: vaibhav <vaibhavnagargoje2000@gmail.com>
+Date:   Sun Apr 27 12:20:18 2025 +0530
+
+    procfile added
+
+[33mcommit aef4577a3395b5c0018ab7d1c788457a48c77b1e[m
+Author: vaibhav <vaibhavnagargoje2000@gmail.com>
+Date:   Sun Apr 27 12:14:00 2025 +0530
+
+    changes the requirement .txt
+
+[33mcommit 1de5503d25ebc36e7daaf4f549ee6177cad5c498[m
+Author: vaibhav <vaibhavnagargoje2000@gmail.com>
+Date:   Sun Apr 27 12:06:30 2025 +0530
+
+    requirement.txt added
+
+[33mcommit a380763d257193111d9086df5d732e76307237ad[m
+Author: vaibhav <vaibhavnagargoje2000@gmail.com>
+Date:   Sun Apr 27 11:47:02 2025 +0530
+
+    requirement.txt added
+
+[33mcommit ab813da6745f625117a408f8b813f0ba8de97eca[m
+Author: vaibhav <vaibhavnagargoje2000@gmail.com>
+Date:   Sun Apr 27 10:53:24 2025 +0530
+
+     bar chart also working
+
+[33mcommit ba3cfe860cfd6efaf8f4607527fe6c9cd55c3276[m
+Author: vaibhav <vaibhavnagargoje2000@gmail.com>
+Date:   Sun Apr 27 10:49:59 2025 +0530
+
+    update final line chart with proper working
+
+[33mcommit 5a67cf9c95beb41303719ab77997e709aab20124[m
+Author: vaibhav <vaibhavnagargoje2000@gmail.com>
+Date:   Sat Apr 26 19:11:29 2025 +0530
+
+    paramenter  based done with bar chart
+
+[33mcommit 99c22b312ad38dc9cd3db784a7f2ccc8fb985e62[m
+Author: vaibhav <vaibhavnagargoje2000@gmail.com>
+Date:   Sat Apr 26 18:01:25 2025 +0530
+
+    applyed parameter based serch for line.js
+
+[33mcommit b7c80d41866c31fd39e09349d6bd837c4692d7c1[m
+Author: vaibhav <vaibhavnagargoje2000@gmail.com>
+Date:   Sat Apr 26 16:51:54 2025 +0530
+
+    nikit replications versions
+
+[33mcommit a8855c1e9996603327ea2fc9e8b876d7484c2dd8[m
+Author: vaibhav <vaibhavnagargoje2000@gmail.com>
+Date:   Mon Apr 21 12:32:01 2025 +0530
+
+     str + int sum aggrigaed error handaled
+
+[33mcommit 6535b5e93f7ee4ab0a47049bdaa89a5f1c95d6fa[m
+Author: vaibhav <vaibhavnagargoje2000@gmail.com>
+Date:   Fri Apr 18 00:32:53 2025 +0530
+
+    fixed by nikit with 2 dropdown
+
+[33mcommit b4ccde1a92ab2172c88b400b8bcbca34449341e5[m
+Author: vaibhav <vaibhavnagargoje2000@gmail.com>
+Date:   Thu Apr 17 12:16:19 2025 +0530
+
+    nikit verison with  doubble dropdown
+
+[33mcommit c22376dee61972aac73ff754ebcd07f32380d4a5[m
+Author: vaibhav <vaibhavnagargoje2000@gmail.com>
+Date:   Wed Apr 16 15:27:42 2025 +0530
+
+    fix 0 offset
+
+[33mcommit f4c52cfbbc815157a3dfbf26f8b827c7b5f3d3f2[m
+Author: vaibhav <vaibhavnagargoje2000@gmail.com>
+Date:   Tue Apr 15 15:24:38 2025 +0530
+
+    added another filter in index.html file
+
+[33mcommit 2fa357c11e90aa61ea68f64b9f020b1dfb1c6cac[m
+Author: vaibhav <vaibhavnagargoje2000@gmail.com>
+Date:   Tue Apr 15 14:46:01 2025 +0530
+
+     3 version of line chart and fix percentage comma
+
+[33mcommit d6ae51762740707b287644073702ac7a197f513f[m
+Author: vaibhav <vaibhavnagargoje2000@gmail.com>
+Date:   Mon Apr 14 16:47:08 2025 +0530
+
+    update final changes as per mahadev
+
+[33mcommit 0f2d0badde3f1644272f97761b8e6897af852108[m
+Author: vaibhav <vaibhavnagargoje2000@gmail.com>
+Date:   Mon Apr 14 12:17:37 2025 +0530
+
+     update tooltip color to white with perc > 0.1
+
+[33mcommit bdd42f8a96f4ef02bb35536ed653844ae24a9aa0[m
+Author: vaibhav <vaibhavnagargoje2000@gmail.com>
+Date:   Mon Apr 14 10:37:22 2025 +0530
+
+    percent stack bar with 2 legends final
+
+[33mcommit ce616cf1ed256e0cde14d9c1ae1ae1a3ecd6be87[m
+Author: vaibhav <vaibhavnagargoje2000@gmail.com>
+Date:   Sun Apr 13 16:28:29 2025 +0530
+
+     stackbar added and working is fine
+
+[33mcommit d24e1fc63ca24b36c975e52309a0008214ce4408[m
+Author: vaibhav <vaibhavnagargoje2000@gmail.com>
+Date:   Sun Apr 13 16:09:44 2025 +0530
+
+     create line and bar finallized
+
+[33mcommit f1c941379a949b4f511d9e6a9fe8b41d8f36fefc[m
+Author: vaibhav <vaibhavnagargoje2000@gmail.com>
+Date:   Sat Apr 12 00:02:42 2025 +0530
+
+    line update as per mahadev
+
+[33mcommit ae997e100ad99419860d1ce16ad7d83b0b89b74c[m
+Author: vaibhav <vaibhavnagargoje2000@gmail.com>
+Date:   Fri Apr 11 17:43:20 2025 +0530
+
+     make ui changes
+
+[33mcommit 1f89c62f1ad7b99340678817bc1d4d77cd4de628[m
+Author: vaibhav <vaibhavnagargoje2000@gmail.com>
+Date:   Thu Apr 10 20:47:09 2025 +0530
+
+    change defalut color and tooltips
+
+[33mcommit 4d259eee9cd12648c1214c676a197dc66366ffce[m
+Author: vaibhav <vaibhavnagargoje2000@gmail.com>
+Date:   Tue Apr 8 20:07:10 2025 +0530
+
+    handal int64, point border radius
+
+[33mcommit 095182ca7b39dcba5d6dca50254f57b8eb2dc638[m
+Author: vaibhav <vaibhavnagargoje2000@gmail.com>
+Date:   Tue Apr 8 19:43:14 2025 +0530
+
+     line chart working partially null value
+
+[33mcommit c7c165f13d28785bdc8862268ffeae68510b243c[m
+Author: vaibhav <vaibhavnagargoje2000@gmail.com>
+Date:   Mon Apr 7 12:34:23 2025 +0530
+
+     color palaet update and remove vertical grid
+
+[33mcommit 607a355c270fa8c998501e6b48a8d5d4efa7086f[m
+Author: vaibhav <vaibhavnagargoje2000@gmail.com>
+Date:   Sun Apr 6 01:42:13 2025 +0530
+
+    update UI of chart in index.py
+
+[33mcommit bc353ace4e674458c662a4fc2da056e7a3152e46[m
+Author: vaibhav <vaibhavnagargoje2000@gmail.com>
+Date:   Sun Apr 6 01:29:03 2025 +0530
+
+    tension set to 0
+
+[33mcommit 90b191744d99a63e80b23ecf55326e45f0c37f25[m
+Author: vaibhav <vaibhavnagargoje2000@gmail.com>
+Date:   Fri Apr 4 16:59:08 2025 +0530
+
+     stack bar chart decimal values update
+
+[33mcommit 047d37782cd558a9e717494ad915131fcd01b4f2[m
+Author: vaibhav <vaibhavnagargoje2000@gmail.com>
+Date:   Fri Apr 4 16:41:14 2025 +0530
+
+     update stack bar chart dropdown
+
+[33mcommit 1735c13a4edde9000ab66976b6ac4beb01a8e040[m
+Author: vaibhav <vaibhavnagargoje2000@gmail.com>
+Date:   Fri Apr 4 15:00:02 2025 +0530
+
+    update with lato font
+
+[33mcommit 3ae413f72cdec031643b33f613b89c2c1dac8fc3[m
+Author: vaibhav <vaibhavnagargoje2000@gmail.com>
+Date:   Fri Apr 4 14:55:29 2025 +0530
+
+    update color palete
+
+[33mcommit ae660f7af70f7c172b02fc009edc8a64999dbfb2[m
+Author: vaibhav <vaibhavnagargoje2000@gmail.com>
+Date:   Fri Apr 4 14:47:54 2025 +0530
+
+     drop fix 'default version'
+
+[33mcommit 36ab1c7f6cc3cfda7f952edb8fad8d6fe8f6cab2[m
+Author: vaibhav <vaibhavnagargoje2000@gmail.com>
+Date:   Fri Apr 4 00:19:17 2025 +0530
+
+    update app.py
+
+[33mcommit 397977a11bfb2cdade3d7c21b405bb4b4515fee1[m
+Author: vaibhav <vaibhavnagargoje2000@gmail.com>
+Date:   Thu Apr 3 14:37:43 2025 +0530
+
+    download working
+
+[33mcommit 72748f7b5a1873f25190dc48fed77841dccc539b[m
+Author: vaibhav <vaibhavnagargoje2000@gmail.com>
+Date:   Thu Apr 3 01:45:27 2025 +0530
+
+    updated with v0
+
+[33mcommit b399c7ec7605326dbdfa169be80bf7b430cd9dbb[m
+Author: vaibhav <vaibhavnagargoje2000@gmail.com>
+Date:   Wed Apr 2 15:07:51 2025 +0530
+
+    add source and comment with logo fix
+
+[33mcommit dda8ebb5f852f467e59566bee570ba4ec0a20798[m
+Author: vaibhav <vaibhavnagargoje2000@gmail.com>
+Date:   Wed Apr 2 13:43:53 2025 +0530
+
+     logo add in the chart with min  max range
+
+[33mcommit bbbd3a1a7fba5f7f6ed2b4cb1ec70f0bc787979e[m
+Author: vaibhav <vaibhavnagargoje2000@gmail.com>
+Date:   Wed Apr 2 11:03:35 2025 +0530
+
+    indian format with choose range for y-axis
+
+[33mcommit 6f7735823028f89c1a4052c9855505f0c095ba9e[m
+Author: vaibhav <vaibhavnagargoje2000@gmail.com>
+Date:   Wed Apr 2 01:07:50 2025 +0530
+
+     done stack bar chart dynamic recalculation
+
+[33mcommit 25e31d837b83673432adfed83dcf75b378901976[m
+Author: vaibhav <vaibhavnagargoje2000@gmail.com>
+Date:   Wed Apr 2 00:26:58 2025 +0530
+
+     color palate updated
+
+[33mcommit b3e55407d61f5dcb1037dff15d77a9f2dfefdeb7[m
+Author: vaibhav <vaibhavnagargoje2000@gmail.com>
+Date:   Wed Apr 2 00:10:05 2025 +0530
+
+     functionality working fine
