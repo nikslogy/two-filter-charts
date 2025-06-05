@@ -57,8 +57,8 @@ document.addEventListener('DOMContentLoaded', function() {
     
     // Define a default color palette for charts
     const colorPalette = [
-        '#1a4570', '#ee8939', '#f5b843', '#8b3834', '#e0ba3f',
-        '#e6e770', '#4d83c5', '#d3a037', '#779c51', '#b2d571'
+        '#1a4570', '#e9ba5d', '#e46e53', '#af7c50', '#a59f9c',
+        '#6cbde0', '#757595', '#478db8', '#9c71c6', '#7bbc9a'
     ];
     
     // File upload handling
