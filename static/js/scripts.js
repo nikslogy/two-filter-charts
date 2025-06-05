@@ -158,112 +158,157 @@ document.addEventListener('DOMContentLoaded', function() {
     
     // Load data from selected sheet
     function loadSheetData() {
-        loadingIndicator.classList.remove('hidden');
+    loadingIndicator.classList.remove('hidden');
 
-        // Reset filter values when changing sheets
-        filterValueSelect.innerHTML = '<option value="">Select column first</option>';
-        filterValueSelect.disabled = true;
-        
-        fetch('/get_sheet_data', {
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/json',
-            },
-            body: JSON.stringify({
-                filename: currentFileName,
-                sheet: currentSheetName
-            })
+    // Reset filter values when changing sheets (minimal operations)
+    filterValueSelect.innerHTML = '<option value="">Select column first</option>';
+    filterValueSelect.disabled = true;
+    
+    fetch('/get_sheet_data', {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+            filename: currentFileName,
+            sheet: currentSheetName
         })
-        .then(response => response.json())
-        .then(data => {
-            loadingIndicator.classList.add('hidden');
+    })
+    .then(response => response.json())
+    .then(data => {
+        loadingIndicator.classList.add('hidden');
+        
+        if (data.success) {
+            columns = data.columns;
+            sheetData = data.data;
             
-            if (data.success) {
-                columns = data.columns;
-                sheetData = data.data;
-                
-                // Update row count
-                endRowInput.value = data.rowCount + 1; // +1 for header row
-                
-                populateColumnSelectors();
-                populateFilterColumns();
-                chartTypeSelection.classList.remove('hidden');
+            // Update row count
+            endRowInput.value = data.rowCount + 1; // +1 for header row
+            
+            // Populate selectors
+            populateColumnSelectors();
+            populateFilterColumns();
+            
+            // Show chart type selection
+            chartTypeSelection.classList.remove('hidden');
 
-                // Hide chart display when changing sheets
+            // Hide chart display and cleanup when changing sheets
+            if (chartDisplay && !chartDisplay.classList.contains('hidden')) {
                 chartDisplay.classList.add('hidden');
+                
+                // Clear chart filter dropdowns only if they exist and are visible
+                const chartFilterControls = document.querySelector('.chart-filter-controls');
+                if (chartFilterControls && !chartFilterControls.classList.contains('hidden')) {
+                    chartFilterValue.innerHTML = '<option value="">All Values</option>';
+                    chartFilterValue2.innerHTML = '<option value="">All Values</option>';
+                    chartFilterControls.classList.add('hidden');
+                }
+                
+                // Destroy chart if it exists
                 if (currentChart) {
                     currentChart.destroy();
                     currentChart = null;
                 }
-                } else {
-                alert('Error: ' + data.error);
             }
-        })
-        .catch(error => {
-            loadingIndicator.classList.add('hidden');
-            console.error('Error:', error);
-            alert('Error loading sheet data. Please try again.');
-        });
-    }
+        } else {
+            alert('Error: ' + data.error);
+        }
+    })
+    .catch(error => {
+        loadingIndicator.classList.add('hidden');
+        console.error('Error:', error);
+        alert('Error loading sheet data. Please try again.');
+    });
+}
     
-    // Populate column selectors
+    // Populate column selectors (optimized version)
     function populateColumnSelectors() {
         // Clear existing options
         xAxisSelect.innerHTML = '';
-        document.querySelectorAll('.y-axis-select').forEach(select => {
+        
+        // Clear all Y-axis selects
+        const yAxisSelects = document.querySelectorAll('.y-axis-select');
+        yAxisSelects.forEach(select => {
             select.innerHTML = '';
         });
         
-        // Add options for each column
+        // Create document fragments for better performance
+        const xAxisFragment = document.createDocumentFragment();
+        const yAxisFragments = Array.from(yAxisSelects).map(() => document.createDocumentFragment());
+        
+        // Add options for each column using fragments
         columns.forEach(column => {
             // Add to X-axis select
             const xOption = document.createElement('option');
             xOption.value = column;
             xOption.textContent = column;
-            xAxisSelect.appendChild(xOption);
+            xAxisFragment.appendChild(xOption);
             
             // Add to Y-axis selects
-            document.querySelectorAll('.y-axis-select').forEach(select => {
+            yAxisSelects.forEach((select, index) => {
                 const yOption = document.createElement('option');
                 yOption.value = column;
                 yOption.textContent = column;
-                select.appendChild(yOption);
+                yAxisFragments[index].appendChild(yOption);
             });
         });
         
-        // Trigger change events to update previews
-        xAxisSelect.dispatchEvent(new Event('change'));
-        document.querySelector('.y-axis-select').dispatchEvent(new Event('change'));
+        // Append fragments to selects (single DOM operation each)
+        xAxisSelect.appendChild(xAxisFragment);
+        yAxisSelects.forEach((select, index) => {
+            select.appendChild(yAxisFragments[index]);
+        });
+        
+        // Trigger change events to update previews (debounced)
+        setTimeout(() => {
+            xAxisSelect.dispatchEvent(new Event('change'));
+            if (yAxisSelects.length > 0) {
+                yAxisSelects[0].dispatchEvent(new Event('change'));
+            }
+        }, 50);
     }
     
-    // Populate filter column selectors
+    // Populate filter column selectors (optimized version)
     function populateFilterColumns() {
-        // Clear existing options
+        // Clear existing options efficiently
         filterColumnSelect.innerHTML = '<option value="">No Filter</option>';
         filterColumn2Select.innerHTML = '<option value="">No Chart Filter</option>';
-        filterColumn3Select.innerHTML = '<option value="">No Chart Filter</option>'; 
+        filterColumn3Select.innerHTML = '<option value="">No Chart Filter</option>';
         
-        // Also clear the chart filter dropdowns when changing sheets
-        chartFilterValue.innerHTML = '<option value="">All Values</option>';
-        chartFilterValue2.innerHTML = '<option value="">All Values</option>';
-
-        // Hide chart filter controls when changing sheets
-        document.querySelector('.chart-filter-controls').classList.add('hidden');
-        chartFilterValue.parentElement.classList.add('hidden');
-        chartFilterValue2.parentElement.classList.add('hidden');
-
-        // Add options for each column
+        // Reset filter value dropdown
+        filterValueSelect.innerHTML = '<option value="">Select column first</option>';
+        filterValueSelect.disabled = true;
+        
+        // Create document fragment for better performance
+        const fragment1 = document.createDocumentFragment();
+        const fragment2 = document.createDocumentFragment();
+        const fragment3 = document.createDocumentFragment();
+        
+        // Add options for each column using fragments
         columns.forEach(column => {
-            // Add to filter column select
+            // Create options
             const filterOption = document.createElement('option');
             filterOption.value = column;
             filterOption.textContent = column;
-            filterColumnSelect.appendChild(filterOption.cloneNode(true));
             
-            // Add to chart filter column selects
-            filterColumn2Select.appendChild(filterOption.cloneNode(true));
-            filterColumn3Select.appendChild(filterOption.cloneNode(true));
+            const filterOption2 = document.createElement('option');
+            filterOption2.value = column;
+            filterOption2.textContent = column;
+            
+            const filterOption3 = document.createElement('option');
+            filterOption3.value = column;
+            filterOption3.textContent = column;
+            
+            // Add to fragments
+            fragment1.appendChild(filterOption);
+            fragment2.appendChild(filterOption2);
+            fragment3.appendChild(filterOption3);
         });
+        
+        // Append fragments to selects (single DOM operation each)
+        filterColumnSelect.appendChild(fragment1);
+        filterColumn2Select.appendChild(fragment2);
+        filterColumn3Select.appendChild(fragment3);
     }
     
     // Handle X-axis selection
@@ -729,7 +774,7 @@ document.addEventListener('DOMContentLoaded', function() {
             filterColumn: filterColumnSelect.value,
             filterValue: filterValueSelect.value,
             chartFilterColumn: filterColumn2Select.value,
-            chartFilterValue: chartFilterValue.value,
+            chartFilterValue: filterValue,
             chartFilterColumn2: filterColumn3Select.value,
             chartFilterValue2: filterValue2
         };
