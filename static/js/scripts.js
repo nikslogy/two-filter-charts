@@ -159,6 +159,10 @@ document.addEventListener('DOMContentLoaded', function() {
     // Load data from selected sheet
     function loadSheetData() {
         loadingIndicator.classList.remove('hidden');
+
+        // Reset filter values when changing sheets
+        filterValueSelect.innerHTML = '<option value="">Select column first</option>';
+        filterValueSelect.disabled = true;
         
         fetch('/get_sheet_data', {
             method: 'POST',
@@ -184,7 +188,14 @@ document.addEventListener('DOMContentLoaded', function() {
                 populateColumnSelectors();
                 populateFilterColumns();
                 chartTypeSelection.classList.remove('hidden');
-            } else {
+
+                // Hide chart display when changing sheets
+                chartDisplay.classList.add('hidden');
+                if (currentChart) {
+                    currentChart.destroy();
+                    currentChart = null;
+                }
+                } else {
                 alert('Error: ' + data.error);
             }
         })
@@ -229,7 +240,18 @@ document.addEventListener('DOMContentLoaded', function() {
     function populateFilterColumns() {
         // Clear existing options
         filterColumnSelect.innerHTML = '<option value="">No Filter</option>';
-        filterColumn2Select.innerHTML = '<option value="">No Chart Filter</option>';        
+        filterColumn2Select.innerHTML = '<option value="">No Chart Filter</option>';
+        filterColumn3Select.innerHTML = '<option value="">No Chart Filter</option>'; 
+        
+        // Also clear the chart filter dropdowns when changing sheets
+        chartFilterValue.innerHTML = '<option value="">All Values</option>';
+        chartFilterValue2.innerHTML = '<option value="">All Values</option>';
+
+        // Hide chart filter controls when changing sheets
+        document.querySelector('.chart-filter-controls').classList.add('hidden');
+        chartFilterValue.parentElement.classList.add('hidden');
+        chartFilterValue2.parentElement.classList.add('hidden');
+
         // Add options for each column
         columns.forEach(column => {
             // Add to filter column select
