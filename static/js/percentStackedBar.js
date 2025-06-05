@@ -360,7 +360,7 @@ const PercentStackedBarChartHandler = {
     <style>
         body { 
             font-family: Lato; 
-            margin: 20px; 
+            
             background-color: #f5f5f5;
         }
         .chart-container { 
@@ -408,9 +408,10 @@ const PercentStackedBarChartHandler = {
             color: black;
         }
         .chart-filter-group select {
-            padding: 6px 5px;
+            padding: 2px 5px;
             color:rgb(0, 0, 0);
             border: 1px solid #863F3F;
+            border-radius:6px;
             font-size: 12px;
             min-width: 100px;
         }
@@ -480,6 +481,65 @@ const PercentStackedBarChartHandler = {
         .legend-item input {
             margin-right: 5px;
         }
+         select#chartFilter2,select#chartFilter {
+          margin-left: 1px;
+          width: 80px;  
+          min-width: 85px;
+        }
+        @media (max-width: 767px) {
+            .chart-container {
+            max-width: 1000px; 
+            width: 95%; 
+            margin: 0  auto; 
+            background-color: white;
+            box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
+            /* border-radius: 8px; */
+            padding: 8px;
+            position: relative;
+            }
+            
+            .chart-logo {
+                width: 60px;
+            }
+            
+            .chart-title {
+                font-size: 16px;
+                margin-left: 64px;
+            }
+            
+            .chart-filter-group {
+                margin-left: 0;
+                justify-content: left;
+                width: 100%;
+            }
+            
+            .chart-filter-controls {
+                justify-content: center;
+            }
+            
+            .chart-canvas-container {
+                height: 300px;
+            }
+            
+            .chart-description, .chart-additional-info {
+                font-size: 9px;
+                padding-left: 0;
+            }
+        }
+        
+        @media (min-width: 768px) and (max-width: 991px) {
+            .chart-canvas-container {
+                height: 400px;
+            }
+            
+            .chart-title {
+                font-size: 18px;
+            }
+            
+            .chart-filter-group {
+                margin-left: 20px;
+            }
+        }  
     </style>
 </head>
 <body>
@@ -702,6 +762,8 @@ const PercentStackedBarChartHandler = {
         const chartData = convertToPercentages(originalChartData);
         const chartOptions = ${JSON.stringify(chartConfig.options, null, 2)};
 
+        const hasOnlyOneDataset = chartData.datasets.length === 1;
+        const isMobile = window.innerWidth < 768;
         // Create chart with exact same configuration but adjust for percentages
         const chart = new Chart(ctx, {
             type: 'bar',
@@ -751,14 +813,14 @@ const PercentStackedBarChartHandler = {
                         },
                         color: 'white',
                         font: {
-                            weight: 'bold',
-                            size: 11
+                            
+                            size: isMobile ? 6 : 12,
                         },
                         anchor: 'center',
                         align: 'center'
                     },
                     legend: {
-                        display: true,
+                        display: !hasOnlyOneDataset,
                         position: 'top',
                         labels: {
                             boxWidth: 20,        // Width of the color box
@@ -782,7 +844,11 @@ const PercentStackedBarChartHandler = {
                             drawOnChartArea: false,
                         },
                         ticks: {
-                            color: '#333'       // Optional: customize tick color
+                            color: '#333',       // Optional: customize tick color
+                            maxTicksLimit: isMobile ? 4 : 15,
+                             font: {
+                                size: isMobile ? 10 : 12, // Adjust font size dynamically                                        
+                            }
                         }
                     },
                     y: {
@@ -800,7 +866,10 @@ const PercentStackedBarChartHandler = {
                                 return value + '%';
                             },
                              stepSize: 20,
-                            color: '#333'       // Optional: customize tick color
+                            color: '#333',       // Optional: customize tick color
+                            font: {
+                                    size: isMobile ? 10 : 12, // Adjust font size dynamically            
+                                }
                         }
                     }
                 }
